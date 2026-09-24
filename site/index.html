@@ -67,13 +67,15 @@
     var d = L.DomUtil.create('div', 'panel');
     d.innerHTML = '<h1>Risco de incendio (RCM)</h1><p class="meta" id="meta">a carregar...</p>'
       + '<div id="legend"></div>'
-      + '<details><summary>URL para DMD2</summary>'
+      + '<details><summary>URL para a app</summary>'
       + '<div class="url-row"><code id="u-today"></code>'
       + '<button type="button" data-layer="today">Copiar (hoje)</button></div>'
       + '<div class="url-row"><code id="u-tomorrow"></code>'
       + '<button type="button" data-layer="tomorrow">Copiar (amanha)</button></div>'
-      + '<p class="note">Map Settings &rarr; Online Map Layers &rarr; Add Custom Raster. '
-      + 'Zoom minimo 6, zoom maximo 19.</p></details>'
+      + '<p class="note">Zoom minimo 6, zoom maximo 19.<br>'
+      + '<b>OsmAnd</b> (gratis): Configure map &rarr; Overlay map.<br>'
+      + '<b>DMD2</b> (precisa licenca): Map Settings &rarr; Online Map Layers '
+      + '&rarr; Add Custom Raster.</p></details>'
       + '<p class="note">Previsao de risco meteorologico de incendio. Nao mostra incendios ativos.</p>';
     L.DomEvent.disableClickPropagation(d);
     return d;

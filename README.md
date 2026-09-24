@@ -53,19 +53,50 @@ cerca). Para activarlo de forma permanente, añade esos argumentos al paso
 Relleno con alfa 120/255 para que se siga viendo el mapa base. Bordes de
 concelho a partir de z9.
 
-## Configuración en DMD2
+## Configuración en el móvil
 
-1. *Map Settings → Online Map Layers → Add Custom Raster*.
-2. Pega la URL de la capa **today**.
-3. Zoom mínimo 6, zoom máximo 12.
-4. Si DMD2 usa otra sintaxis de marcadores (`$z/$x/$y` en vez de `{z}/{x}/{y}`),
-   adáptala; el servidor solo sirve ficheros estáticos.
+Cualquier app que acepte una URL de teselas XYZ sirve. Pon siempre **zoom mínimo
+6 y zoom máximo 19** (las teselas llegan a z12; el 19 es para que la app reescale
+al acercar en vez de dejar la capa en blanco).
+
+### OsmAnd (gratis) — recomendado
+
+1. *Menu → Plugins → **Online Maps*** y actívalo.
+2. *Menu → Configure map → **Overlay map…*** → añadir una fuente nueva.
+3. **URL:** la de la capa `today`. OsmAnd acepta tanto `{z}/{x}/{y}` como
+   `{0}/{1}/{2}`, así que vale tal cual.
+4. **Zoom:** mínimo 6, máximo 19.
+5. **Expire time:** ponlo en unos **120 minutos**. Si se deja sin caducidad,
+   OsmAnd guarda las teselas y seguirías viendo el riesgo de ayer.
+6. Deja el **deslizador de transparencia** al máximo de opacidad: las teselas ya
+   vienen semitransparentes (alfa 120), la transparencia está en la propia imagen.
+
+### DMD2 — necesita licencia
+
+*Map Settings → Online Map Layers → Add Custom Raster*, con la URL de `today`,
+zoom 6–19 y, si existe el interruptor, marcada como overlay.
+
+Ojo: la documentación oficial dice que **"Online Map Layers needs a license"**, y
+*Add Custom Raster* está dentro de eso. Con la versión gratuita la opción no
+aparece. Y si acabas comprando la licencia, DMD2 ya incluye sus propias capas
+*Active Fires* y *Fire Danger*; esta capa sigue teniendo sentido porque es el
+índice oficial del IPMA por concelho, pero conviene saberlo.
+
+### Otras apps gratuitas
+
+**OruxMaps** (fuentes en `onlinemapsources.xml`) y **Guru Maps** (fuentes
+personalizadas en el nivel gratuito) también aceptan URLs XYZ.
+
+### Si la app no reescala por encima de z12
+
+Ver *Zoom por encima de 12*, más arriba.
 
 ### Si ves datos de ayer (caché)
 
-DMD2 puede guardar las teselas en su *auto-cache*. Si la capa no se actualiza:
+Las apps guardan las teselas ya vistas. Si la capa no se actualiza:
 
-- Desactiva el auto-cache para esa capa, o borra su caché.
+- OsmAnd: baja el *Expire time* de la fuente.
+- DMD2: *Clear Auto-Cache*, o desactiva el auto-cache para esa capa.
 - Plan B: publicar además una ruta con fecha (`/d/AAAA-MM-DD/{z}/{x}/{y}.png`)
   y cambiar la URL a diario. No está activado para no duplicar el tamaño del
   despliegue; se añade fácil en `scripts/build_tiles.py` (copiar `today/` a
