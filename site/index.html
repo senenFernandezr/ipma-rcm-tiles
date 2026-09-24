@@ -19,6 +19,17 @@
   .legend-row { display: flex; align-items: center; gap: 6px; margin: 2px 0; font-size: 12px; }
   .swatch { width: 16px; height: 12px; border: 1px solid rgba(0,0,0,.35); border-radius: 2px; }
   .note { font-size: 11px; color: #666; margin-top: 6px; }
+  details { margin-top: 6px; }
+  summary { font-size: 12px; font-weight: 600; cursor: pointer; }
+  .url-row { margin: 6px 0; }
+  .url-row code {
+    display: block; font-size: 10px; word-break: break-all; color: #222;
+    background: #f1f1f1; border-radius: 4px; padding: 3px 4px;
+  }
+  .url-row button {
+    margin-top: 3px; font-size: 11px; padding: 4px 8px; border-radius: 4px;
+    border: 1px solid #bbb; background: #fff; cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -56,11 +67,47 @@
     var d = L.DomUtil.create('div', 'panel');
     d.innerHTML = '<h1>Risco de incendio (RCM)</h1><p class="meta" id="meta">a carregar...</p>'
       + '<div id="legend"></div>'
+      + '<details><summary>URL para DMD2</summary>'
+      + '<div class="url-row"><code id="u-today"></code>'
+      + '<button type="button" data-layer="today">Copiar (hoje)</button></div>'
+      + '<div class="url-row"><code id="u-tomorrow"></code>'
+      + '<button type="button" data-layer="tomorrow">Copiar (amanha)</button></div>'
+      + '<p class="note">Map Settings &rarr; Online Map Layers &rarr; Add Custom Raster. '
+      + 'Zoom minimo 6, zoom maximo 19.</p></details>'
       + '<p class="note">Previsao de risco meteorologico de incendio. Nao mostra incendios ativos.</p>';
     L.DomEvent.disableClickPropagation(d);
     return d;
   };
   info.addTo(map);
+
+  // URL absoluta de cada capa, para copiar y pegar en la app.
+  // Sin new URL(): codificaria las llaves de {z}/{x}/{y} como %7B.
+  var base = location.origin + location.pathname.replace(/[^/]*$/, '');
+  var urls = { today: base + 'today/{z}/{x}/{y}.png',
+               tomorrow: base + 'tomorrow/{z}/{x}/{y}.png' };
+  document.getElementById('u-today').textContent = urls.today;
+  document.getElementById('u-tomorrow').textContent = urls.tomorrow;
+
+  document.querySelectorAll('.url-row button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = urls[btn.getAttribute('data-layer')];
+      var done = function () { btn.textContent = 'Copiado!'; };
+      var fail = function () {
+        // Sin acceso al portapapeles: se selecciona para copiar a mano.
+        var range = document.createRange();
+        range.selectNodeContents(btn.parentNode.querySelector('code'));
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        btn.textContent = 'Copia a mao';
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fail);
+      } else {
+        fail();
+      }
+    });
+  });
 
   fetch('meta.json?_=' + Date.now()).then(function (r) { return r.json(); }).then(function (m) {
     var t = (m.layers && m.layers.today) || {};
