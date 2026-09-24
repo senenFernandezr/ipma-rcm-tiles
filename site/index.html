@@ -80,9 +80,10 @@
       + '&rarr; Add Custom Raster.</p></details>'
       + '<details open><summary>GPX tramado (DMD2 sem licenca)</summary>'
       + '<div id="files-gpx" class="files">a carregar...</div>'
-      + '<p class="note">Um ficheiro por nivel. Descarregar, abrir com '
-      + '&laquo;Import to DMD&raquo; e dar-lhe cor com <b>Set Colour For All</b>. '
-      + 'DMD2 nao desenha superficies, so linhas: a zona vai tramada.</p></details>'
+      + '<p class="note">Um ficheiro por dia, com um track por nivel. '
+      + 'Descarregar, abrir com &laquo;Import to DMD&raquo; e dar cor a cada '
+      + 'track. DMD2 nao desenha superficies, so linhas: a zona vai tramada, '
+      + 'cruzada no nivel 5.</p></details>'
       + '<details><summary>KMZ com poligonos (outras apps)</summary>'
       + '<div id="files-kmz" class="files">a carregar...</div>'
       + '<p class="note">Poligonos com cor propria. Nao servem no DMD2, que os '
@@ -144,9 +145,11 @@
     Object.keys(files).sort().forEach(function (k) {
       var f = files[k];
       if (f.gpx) {
-        gpx.push({ sort: (day(k) === 'Hoje' ? 0 : 1) * 10 - f.rcm,
-          html: '<a href="' + f.gpx + '" download>' + day(k) + ' &middot; nivel ' +
-                f.rcm + ' (' + f.label + ') <span class="size">' +
+        var niveis = (f.tracks || []).map(function (t) { return t.rcm; })
+          .sort().join(' e ');
+        gpx.push({ sort: (day(k) === 'Hoje' ? 0 : 1),
+          html: '<a href="' + f.gpx + '" download>' + day(k) +
+                ' &middot; niveis ' + niveis + ' <span class="size">' +
                 Math.round(f.gpxBytes / 1024) + ' KB</span></a>' });
       } else if (f.kmz) {
         kmz.push({ sort: (day(k) === 'Hoje' ? 0 : 1) * 10 + (f.minRcm > 1 ? 0 : 1),

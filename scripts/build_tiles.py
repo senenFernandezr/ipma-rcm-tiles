@@ -371,6 +371,9 @@ HATCH = {3: 0.036, 4: 0.024, 5: 0.018}
 # aunque el usuario le ponga el mismo color.
 HATCH_CROSS = {5}
 MEAN_LAT = 39.6
+# Niveles que van al GPX, de mayor a menor riesgo. Los bajos no interesan al
+# conducir y solo ensucian el mapa.
+GPX_LEVELS = (5, 4)
 
 
 def hatch_lines(geom, spacing: float, cross: bool) -> list:
@@ -412,26 +415,41 @@ def outline_rings(geom) -> list:
     return rings
 
 
-def write_gpx(path: Path, title: str, rcm: int, geom, payload: dict) -> int:
-    """Un <trk> con el contorno y el tramado, cada tramo en su propio <trkseg>.
+def write_gpx(path: Path, title: str, geoms: list, payload: dict) -> dict:
+    """Un fichero con un <trk> por nivel: el contorno mas el tramado.
 
-    Los trkseg son discontinuos por definicion en GPX, asi que la app no los une.
+    geoms: lista de (rcm, geometria), de mayor a menor riesgo.
+
+    Un solo fichero por dia porque DMD2 permite dar color a cada track por
+    separado dentro del mismo fichero, ademas del "Set Colour For All".
+    Cada tramo va en su propio <trkseg>, discontinuo por definicion en GPX,
+    para que la app no los una con lineas falsas.
     """
-    segs = outline_rings(geom) + hatch_lines(geom, HATCH.get(rcm, 0.024),
-                                             rcm in HATCH_CROSS)
     doc = ['<?xml version="1.0" encoding="UTF-8"?>',
            '<gpx version="1.1" creator="ipma-rcm-tiles" '
            'xmlns="http://www.topografix.com/GPX/1/1">',
-           "<metadata><name>%s</name><desc>Risco de incendio IPMA nivel %d (%s), "
-           "previsao para %s. Nao mostra incendios ativos.</desc></metadata>"
-           % (title, rcm, RCM_LABEL[rcm], payload["dataPrev"]),
-           "<trk><name>%s</name>" % title]
-    for seg in segs:
-        pts = "".join('<trkpt lat="%.5f" lon="%.5f"/>' % (c[1], c[0]) for c in seg)
-        doc.append("<trkseg>%s</trkseg>" % pts)
-    doc.append("</trk></gpx>")
+           "<metadata><name>%s</name><desc>Risco de incendio IPMA, niveis %s, "
+           "previsao para %s (IPMA %s). Nao mostra incendios ativos.</desc>"
+           "</metadata>"
+           % (title, "+".join(str(r) for r, _g in geoms),
+              payload["dataPrev"], payload["fileDate"])]
+
+    per_track = {}
+    for rcm, geom in geoms:
+        segs = outline_rings(geom) + hatch_lines(geom, HATCH.get(rcm, 0.024),
+                                                 rcm in HATCH_CROSS)
+        doc.append("<trk><name>RCM %d - %s</name><type>rcm%d</type>"
+                   % (rcm, RCM_LABEL[rcm], rcm))
+        for seg in segs:
+            pts = "".join('<trkpt lat="%.5f" lon="%.5f"/>' % (c[1], c[0])
+                          for c in seg)
+            doc.append("<trkseg>%s</trkseg>" % pts)
+        doc.append("</trk>")
+        per_track[rcm] = len(segs)
+
+    doc.append("</gpx>")
     path.write_text("".join(doc), encoding="utf-8")
-    return len(segs)
+    return per_track
 
 
 def main() -> int:
@@ -491,32 +509,43 @@ def main() -> int:
     # Ficheros para apps sin raster propio.
     files_meta = {}
 
-    # GPX tramado, un fichero por nivel: es lo unico que DMD2 sabe dibujar sin
-    # licencia, y al ser un fichero por nivel se le puede dar color a cada uno.
+    # GPX tramado: un fichero por dia con un track por nivel de riesgo alto. Es
+    # lo unico que DMD2 dibuja sin licencia, porque no sabe rellenar superficies.
     for name, payload in data.items():
         merged = {}
         for dico, geom in concelhos:
             rcm = payload["levels"].get(dico)
             if rcm is not None:
                 merged.setdefault(rcm, []).append(geom)
-        for rcm in sorted(HATCH, reverse=True):
+
+        geoms = []
+        for rcm in GPX_LEVELS:
             if rcm not in merged:
                 continue
             geom = unary_union(merged[rcm]).simplify(KML_SIMPLIFY,
                                                      preserve_topology=True)
-            if geom.is_empty:
-                continue
-            stem = "rcm-%s-n%d" % (name, rcm)
-            gpx_path = outdir / (stem + ".gpx")
-            title = "RCM %d %s - %s" % (rcm, RCM_LABEL[rcm], payload["dataPrev"])
-            segs = write_gpx(gpx_path, title, rcm, geom, payload)
-            files_meta[stem] = {
-                "gpx": gpx_path.name, "rcm": rcm, "label": RCM_LABEL[rcm],
-                "concelhos": len(merged[rcm]), "segments": segs,
-                "gpxBytes": gpx_path.stat().st_size,
-            }
-            print("[ok] %s: %d concelhos, %d tramos, GPX %.0f KB"
-                  % (stem, len(merged[rcm]), segs, gpx_path.stat().st_size / 1024))
+            if not geom.is_empty:
+                geoms.append((rcm, geom))
+        if not geoms:
+            print("[warn] %s: ningun concelho en los niveles %s, sin GPX"
+                  % (name, GPX_LEVELS), file=sys.stderr)
+            continue
+
+        gpx_path = outdir / ("rcm-%s.gpx" % name)
+        title = "RCM %s - %s" % (name, payload["dataPrev"])
+        per_track = write_gpx(gpx_path, title, geoms, payload)
+        files_meta["gpx-" + name] = {
+            "gpx": gpx_path.name,
+            "gpxBytes": gpx_path.stat().st_size,
+            "tracks": [{"rcm": rcm, "label": RCM_LABEL[rcm],
+                        "concelhos": len(merged[rcm]),
+                        "segments": per_track[rcm]} for rcm, _g in geoms],
+        }
+        print("[ok] rcm-%s.gpx: %s, %d tramos, %.0f KB"
+              % (name,
+                 " + ".join("nivel %d (%d concelhos)" % (r, len(merged[r]))
+                            for r, _g in geoms),
+                 sum(per_track.values()), gpx_path.stat().st_size / 1024))
 
     # KML/KMZ: poligonos con relleno, para apps que si dibujan superficies.
     for name, payload in data.items():
@@ -536,7 +565,7 @@ def main() -> int:
             kmz_path = outdir / (stem + ".kmz")
             with zipfile.ZipFile(kmz_path, "w", zipfile.ZIP_DEFLATED) as zf:
                 zf.write(kml_path, "doc.kml")
-            files_meta[stem] = {
+            files_meta["kmz-" + name + suffix] = {
                 "kml": kml_path.name, "kmz": kmz_path.name,
                 "levels": n, "minRcm": min_rcm,
                 "kmlBytes": kml_path.stat().st_size,

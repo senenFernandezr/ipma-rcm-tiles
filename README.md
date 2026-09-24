@@ -16,8 +16,8 @@ Portugal continental, pensada para usarla como *Custom Raster* en **DMD2**
 | Mañana | `https://senenfernandezr.github.io/ipma-rcm-tiles/tomorrow/{z}/{x}/{y}.png` |
 | Visor de prueba | `https://senenfernandezr.github.io/ipma-rcm-tiles/` |
 | Metadatos | `https://senenfernandezr.github.io/ipma-rcm-tiles/meta.json` |
-| GPX hoy, nivel 5 | `https://senenfernandezr.github.io/ipma-rcm-tiles/rcm-today-n5.gpx` |
-| GPX hoy, nivel 4 | `https://senenfernandezr.github.io/ipma-rcm-tiles/rcm-today-n4.gpx` |
+| GPX hoy (niveles 4 y 5) | `https://senenfernandezr.github.io/ipma-rcm-tiles/rcm-today.gpx` |
+| GPX mañana (niveles 4 y 5) | `https://senenfernandezr.github.io/ipma-rcm-tiles/rcm-tomorrow.gpx` |
 | KMZ hoy (nivel 4-5) | `https://senenfernandezr.github.io/ipma-rcm-tiles/rcm-today-alto.kmz` |
 
 Las teselas necesitan una app que acepte capas raster propias, que en DMD2 es de
@@ -73,41 +73,43 @@ menciona superficies rellenas en ningún formato. Los KML con polígonos entran
 como rutas, sin relleno. Probado.
 
 La solución es la de toda la vida en cartografía: **rellenar la zona con
-líneas**. El build genera un GPX por nivel con el contorno más un tramado:
+líneas**. El build genera **un fichero por día** con un track por nivel de
+riesgo alto:
 
-| Fichero | Nivel | Tramado |
+| Fichero | Tracks | Tramado |
 |---|---|---|
-| `rcm-today-n5.gpx` | 5, máximo | cuadrícula cruzada, ~2 km |
-| `rcm-today-n4.gpx` | 4, muy elevado | franjas horizontales, ~2,7 km |
-| `rcm-today-n3.gpx` | 3, elevado | franjas horizontales, ~4 km |
+| `rcm-today.gpx` | `RCM 5 - Maximo` | cuadrícula cruzada, ~2 km |
+| | `RCM 4 - Muito elevado` | franjas horizontales, ~2,7 km |
+| `rcm-tomorrow.gpx` | los mismos dos | |
 
-Y los mismos tres para `tomorrow`. Cada tramo va en su propio `<trkseg>`, que en
-GPX es discontinuo por definición, así que no se unen con líneas falsas.
+Un solo fichero por día, no uno por nivel: DMD2 deja **dar color a cada track
+por separado** dentro del mismo fichero, con una paleta de una docena, así que no
+hace falta separarlos. Los niveles que van al fichero se controlan con
+`GPX_LEVELS` en `scripts/build_tiles.py`.
 
-Un fichero por nivel no es capricho: **DMD2 no lee el color del fichero**, lo
-elige el usuario. Separados, cada uno se colorea de una vez con **"Set Colour
-For All"**.
+Cada tramo va en su propio `<trkseg>`, que en GPX es discontinuo por definición,
+así que la app no los une con líneas falsas de un extremo al otro del mapa.
 
 Cómo usarlo:
 
-1. En el visor, sección *GPX tramado*, descarga el nivel que te interese
-   (normalmente el 5 y el 4).
+1. En el visor, sección *GPX tramado*, descarga el fichero del día.
 2. **Abrir con → Import to DMD**.
-3. En el gestor de GPX, **"Set Colour For All"** a cada fichero: rojo para el 4,
-   rojo oscuro o morado para el 5.
-4. En *Line Appearance*, ajusta **grosor y opacidad** a tu gusto: con líneas
-   gruesas y algo transparentes el tramado se lee como una mancha.
+3. En el gestor de GPX verás los dos tracks. Dale color a cada uno: rojo al
+   nivel 4, rojo oscuro o morado al 5. Si te da igual distinguirlos, **"Set
+   Colour For All"** los pinta a la vez.
+4. En *Line Appearance*, sube el **grosor** y baja la **opacidad**: con líneas
+   gruesas y semitransparentes el tramado se lee como una mancha y no como
+   trazas de ruta. Este paso es el que hace la diferencia.
 
-El nivel 5 va en cuadrícula cruzada a propósito: se distingue del 4 por densidad
-aunque les pongas el mismo color.
+El nivel 5 va cruzado a propósito: se distingue del 4 por densidad aunque les
+pongas el mismo color.
 
-Cuesta unos 18.000 puntos entre los dos ficheros de riesgo alto, frente a los
-~1,5 millones que la documentación da como capacidad del dispositivo. No es un
-problema de memoria.
+Son 18.004 puntos en total, frente a los **~1,5 millones** que la documentación
+da como capacidad típica del dispositivo. El 1,2%.
 
 **Hay que repetirlo cada día**, porque la previsión cambia y esto es un fichero,
-no una capa que se refresque sola. Las URLs son fijas: deja un acceso directo en
-la pantalla de inicio.
+no una capa que se refresque sola. La URL es fija: deja un acceso directo en la
+pantalla de inicio.
 
 ### Otras apps sin raster propio — KMZ con polígonos
 
