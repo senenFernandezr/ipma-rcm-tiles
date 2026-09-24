@@ -10,14 +10,12 @@ Portugal continental, pensada para usarla como *Custom Raster* en **DMD2**
 
 ## URLs
 
-Sustituye `<usuario>` por tu usuario de GitHub:
-
 | Capa | URL |
 |---|---|
-| Hoy | `https://<usuario>.github.io/ipma-rcm-tiles/today/{z}/{x}/{y}.png` |
-| Mañana | `https://<usuario>.github.io/ipma-rcm-tiles/tomorrow/{z}/{x}/{y}.png` |
-| Visor de prueba | `https://<usuario>.github.io/ipma-rcm-tiles/` |
-| Metadatos | `https://<usuario>.github.io/ipma-rcm-tiles/meta.json` |
+| Hoy | `https://senenFernandezr.github.io/ipma-rcm-tiles/today/{z}/{x}/{y}.png` |
+| Mañana | `https://senenFernandezr.github.io/ipma-rcm-tiles/tomorrow/{z}/{x}/{y}.png` |
+| Visor de prueba | `https://senenFernandezr.github.io/ipma-rcm-tiles/` |
+| Metadatos | `https://senenFernandezr.github.io/ipma-rcm-tiles/meta.json` |
 
 Zooms disponibles: **6 – 12** (por encima de 12, la app debe escalar la tesela de z12).
 Cobertura: Portugal continental (lon −9,6…−6,1 / lat 36,9…42,2). Fuera de ese
@@ -86,7 +84,7 @@ Desde la web: *Actions → build-and-deploy → Run workflow*.
 Con la CLI:
 
 ```bash
-gh workflow run build-and-deploy --repo <usuario>/ipma-rcm-tiles
+gh workflow run build-and-deploy --repo senenFernandezr/ipma-rcm-tiles
 ```
 
 ## Desarrollo en local
