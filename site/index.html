@@ -74,16 +74,15 @@
       + '<button type="button" data-layer="today">Copiar (hoy)</button></div>'
       + '<div class="url-row"><code id="u-tomorrow"></code>'
       + '<button type="button" data-layer="tomorrow">Copiar (mañana)</button></div>'
-      + '<p class="note">Zoom mínimo 6, zoom máximo 19.<br>'
-      + '<b>OsmAnd</b> (gratis): Configure map &rarr; Overlay map.<br>'
+      + '<p class="note">Zoom 6 a 12; por encima, la app reescala.<br>'
+      + '<b>OsmAnd</b>: Configure map &rarr; Overlay map.<br>'
       + '<b>DMD2</b> (necesita licencia): Map Settings &rarr; Online Map Layers '
       + '&rarr; Add Custom Raster.</p></details>'
-      + '<details open><summary>GPX tramado (DMD2 sin licencia)</summary>'
-      + '<div id="files-gpx" class="files">cargando...</div>'
-      + '<p class="note">Un fichero por día, con un track por nivel. '
-      + 'Descárgalo, ábrelo con &laquo;Import to DMD&raquo; y dale color a cada '
-      + 'track. DMD2 no dibuja superficies, solo líneas: la zona va tramada, '
-      + 'cruzada en el nivel 5.</p></details>'
+      + '<details open><summary>Instalar en OsmAnd (1 toque)</summary>'
+      + '<div id="osmand" class="files">cargando...</div>'
+      + '<p class="note">Abre el enlace en el móvil y elige <b>OsmAnd</b>. '
+      + 'Crea la fuente de teselas ya configurada. Luego: Configure map &rarr; '
+      + 'Overlay map &rarr; elígela.</p></details>'
       + '<details><summary>KMZ con polígonos (otras apps)</summary>'
       + '<div id="files-kmz" class="files">cargando...</div>'
       + '<p class="note">Polígonos con color propio. No sirven en DMD2, que los '
@@ -101,6 +100,24 @@
                tomorrow: base + 'tomorrow/{z}/{x}/{y}.png' };
   document.getElementById('u-today').textContent = urls.today;
   document.getElementById('u-tomorrow').textContent = urls.tomorrow;
+
+  // "Magic URL" de OsmAnd: crea la fuente de teselas ya configurada.
+  // El url_template va sin codificar, como en el ejemplo de su documentacion.
+  function osmandLink(layer, label) {
+    return 'https://osmand.net/add-tile-source'
+      + '?name=' + encodeURIComponent(label)
+      + '&min_zoom=' + ZMIN + '&max_zoom=' + ZMAX
+      + '&url_template=' + urls[layer];
+  }
+  // Se vuelve a pintar tras leer meta.json, por si cambian los zooms.
+  function renderOsmandLinks() {
+    document.getElementById('osmand').innerHTML =
+      '<a href="' + osmandLink('today', 'RCM hoy (IPMA)') + '">'
+      + 'Instalar capa <b>Hoy</b> en OsmAnd</a>'
+      + '<a href="' + osmandLink('tomorrow', 'RCM manana (IPMA)') + '">'
+      + 'Instalar capa <b>Mañana</b> en OsmAnd</a>';
+  }
+  renderOsmandLinks();
 
   document.querySelectorAll('.url-row button').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -141,33 +158,19 @@
     // Ficheros para apps que no aceptan capas raster propias.
     var files = m.files || {};
     var day = function (k) { return k.indexOf('-today') > -1 ? 'Hoy' : 'Mañana'; };
-    var gpx = [], kmz = [];
+    var kmz = [];
     Object.keys(files).sort().forEach(function (k) {
       var f = files[k];
-      if (f.gpx) {
-        var niveis = (f.tracks || []).map(function (t) { return t.rcm; })
-          .sort().join(' y ');
-        gpx.push({ sort: (day(k) === 'Hoy' ? 0 : 1),
-          html: '<a href="' + f.gpx + '" download>' + day(k) +
-                ' &middot; niveles ' + niveis + ' <span class="size">' +
-                Math.round(f.gpxBytes / 1024) + ' KB</span></a>' });
-      } else if (f.kmz) {
-        kmz.push({ sort: (day(k) === 'Hoy' ? 0 : 1) * 10 + (f.minRcm > 1 ? 0 : 1),
-          html: '<a href="' + f.kmz + '" download>' + day(k) +
-                (f.minRcm > 1 ? ' &middot; solo nivel 4-5' : ' &middot; todos los niveles') +
-                ' <span class="size">' + Math.round(f.kmzBytes / 1024) + ' KB</span></a>' });
-      }
+      if (!f.kmz) { return; }
+      kmz.push({ sort: (day(k) === 'Hoy' ? 0 : 1) * 10 + (f.minRcm > 1 ? 0 : 1),
+        html: '<a href="' + f.kmz + '" download>' + day(k) +
+              (f.minRcm > 1 ? ' &middot; solo nivel 4-5' : ' &middot; todos los niveles') +
+              ' <span class="size">' + Math.round(f.kmzBytes / 1024) + ' KB</span></a>' });
     });
-    var render = function (id, list) {
-      var el = document.getElementById(id);
-      if (!el) { return; }
-      list.sort(function (a, b) { return a.sort - b.sort; });
-      el.innerHTML = list.length
-        ? list.map(function (x) { return x.html; }).join('')
-        : 'sin ficheros';
-    };
-    render('files-gpx', gpx);
-    render('files-kmz', kmz);
+    kmz.sort(function (a, b) { return a.sort - b.sort; });
+    document.getElementById('files-kmz').innerHTML = kmz.length
+      ? kmz.map(function (x) { return x.html; }).join('')
+      : 'sin ficheros';
 
     // Ajustar los limites reales de las capas a lo que diga meta.json.
     if (m.zoomMax) {
@@ -182,6 +185,7 @@
         }
         if (map.hasLayer(layer)) { layer.redraw(); }
       });
+      renderOsmandLinks();
     }
   }).catch(function () {
     document.getElementById('meta').textContent = 'meta.json no disponible';

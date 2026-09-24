@@ -16,12 +16,10 @@ Portugal continental, pensada para usarla como *Custom Raster* en **DMD2**
 | Mañana | `https://senenfernandezr.github.io/ipma-rcm-tiles/tomorrow/{z}/{x}/{y}.png` |
 | Visor de prueba | `https://senenfernandezr.github.io/ipma-rcm-tiles/` |
 | Metadatos | `https://senenfernandezr.github.io/ipma-rcm-tiles/meta.json` |
-| GPX hoy (niveles 4 y 5) | `https://senenfernandezr.github.io/ipma-rcm-tiles/rcm-today.gpx` |
-| GPX mañana (niveles 4 y 5) | `https://senenfernandezr.github.io/ipma-rcm-tiles/rcm-tomorrow.gpx` |
 | KMZ hoy (nivel 4-5) | `https://senenfernandezr.github.io/ipma-rcm-tiles/rcm-today-alto.kmz` |
 
-Las teselas necesitan una app que acepte capas raster propias, que en DMD2 es de
-pago. Los **GPX tramados funcionan en DMD2 sin licencia** (ver más abajo).
+Las teselas necesitan una app que acepte capas raster propias: **OsmAnd lo hace
+en su versión gratuita** (ver más abajo). En DMD2 es de pago.
 
 Zooms generados: **6 – 12**. Cobertura: Portugal continental
 (lon −9,6…−6,1 / lat 36,9…42,2); fuera de ese recuadro no hay teselas.
@@ -61,86 +59,82 @@ concelho a partir de z9.
 
 ## Configuración en el móvil
 
-Hay dos formas de consumir esto, según si tienes licencia de DMD2 o no.
+### OsmAnd — el camino recomendado
 
-### DMD2 sin licencia — GPX tramado
+OsmAnd admite capas raster XYZ de forma nativa, con transparencia y control de
+opacidad. Es exactamente lo que esta capa necesita, y funciona en la versión
+gratuita.
 
-*Add Custom Raster* vive dentro de *Online Map Layers*, y la documentación es
-clara: **"Online Map Layers needs a license"**. Importar ficheros sí es gratis
-(GPX, KML, KMZ, GeoJSON, TCX, FIT, ITN, CSV), pero **DMD2 no tiene concepto de
-área**: convierte todo en tracks, routes y waypoints, y la documentación no
-menciona superficies rellenas en ningún formato. Los KML con polígonos entran
-como rutas, sin relleno. Probado.
+**1. Instalar la fuente de teselas (un toque).** OsmAnd acepta *Magic URLs* que
+crean la fuente ya configurada. Abre este enlace **en el móvil** y elige OsmAnd:
 
-La solución es la de toda la vida en cartografía: **rellenar la zona con
-líneas**. El build genera **un fichero por día** con un track por nivel de
-riesgo alto:
+```
+https://osmand.net/add-tile-source?name=RCM%20hoy%20(IPMA)&min_zoom=6&max_zoom=12&url_template=https://senenfernandezr.github.io/ipma-rcm-tiles/today/{z}/{x}/{y}.png
+```
 
-| Fichero | Tracks | Tramado |
-|---|---|---|
-| `rcm-today.gpx` | `RCM 5 - Maximo` | cuadrícula cruzada, ~2 km |
-| | `RCM 4 - Muito elevado` | franjas horizontales, ~2,7 km |
-| `rcm-tomorrow.gpx` | los mismos dos | |
+En el visor tienes ese enlace y el de mañana como botones, en *Instalar en
+OsmAnd*. Si prefieres hacerlo a mano: *Menu → Configure map → Overlay map… →*
+añadir fuente, con la URL de la tabla de arriba, zoom 6–12.
 
-Un solo fichero por día, no uno por nivel: DMD2 deja **dar color a cada track
-por separado** dentro del mismo fichero, con una paleta de una docena, así que no
-hace falta separarlos. Los niveles que van al fichero se controlan con
-`GPX_LEVELS` en `scripts/build_tiles.py`.
+**2. Activar el plugin.** *Menu → Plugins → **Online Maps*** (gratuito).
 
-Cada tramo va en su propio `<trkseg>`, que en GPX es discontinuo por definición,
-así que la app no los une con líneas falsas de un extremo al otro del mapa.
+**3. Ponerla como superposición.** *Menu → Configure map → **Overlay map…*** →
+elige `RCM hoy (IPMA)`. El mapa offline de Portugal sigue debajo.
 
-Cómo usarlo:
+**4. Ajustar la caducidad.** En la fuente, pon **Expire time ≈ 120 minutos**. Sin
+eso OsmAnd cachea las teselas y mañana seguirías viendo el riesgo de hoy. Es el
+paso que más se olvida.
 
-1. En el visor, sección *GPX tramado*, descarga el fichero del día.
-2. **Abrir con → Import to DMD**.
-3. En el gestor de GPX verás los dos tracks. Dale color a cada uno: rojo al
-   nivel 4, rojo oscuro o morado al 5. Si te da igual distinguirlos, **"Set
-   Colour For All"** los pinta a la vez.
-4. En *Line Appearance*, sube el **grosor** y baja la **opacidad**: con líneas
-   gruesas y semitransparentes el tramado se lee como una mancha y no como
-   trazas de ruta. Este paso es el que hace la diferencia.
+**5. Opacidad.** Usa el deslizador de transparencia de la superposición. Las
+teselas ya vienen semitransparentes (alfa 120), así que empieza con el
+deslizador al máximo y bájalo solo si tapa demasiado.
 
-El nivel 5 va cruzado a propósito: se distingue del 4 por densidad aunque les
-pongas el mismo color.
+Sobre el zoom: la fuente se declara **6–12** porque es lo que existe de verdad.
+Al acercar más, OsmAnd reescala la tesela de z12. Si en tu versión la capa
+desapareciera por encima de z12, edita la fuente y sube el *max zoom* a 19.
 
-Son 18.004 puntos en total, frente a los **~1,5 millones** que la documentación
-da como capacidad típica del dispositivo. El 1,2%.
+### Importar tus propios tracks GPX en OsmAnd
 
-**Hay que repetirlo cada día**, porque la previsión cambia y esto es un fichero,
-no una capa que se refresque sola. La URL es fija: deja un acceso directo en la
-pantalla de inicio.
+Dos caminos, según dónde tengas el fichero:
 
-### Otras apps sin raster propio — KMZ con polígonos
+- **Desde un gestor de archivos, correo o mensajería:** toca el `.gpx` y elige
+  **"Open in OsmAnd"**. Aterriza en la carpeta **Import** de *My Places*.
+- **Desde la app:** *Menu → My Places → **Tracks*** y selecciona el fichero. Si
+  el GPX trae varios tracks, puedes importarlo entero o elegir cuáles.
 
-`rcm-today.kmz`, `rcm-today-alto.kmz` y sus equivalentes de `tomorrow` llevan
-los concelhos fusionados por nivel, como polígonos con relleno y color propio en
-el fichero. **En DMD2 no sirven** (los importa como rutas), pero funcionan en
-cualquier app que sí dibuje superficies.
+Además, *"tracks manually added to the OsmAnd folder on your device are
+automatically imported without restarting the application"* — si copias los
+`.gpx` a la carpeta de OsmAnd, aparecen solos.
 
-### Con licencia (DMD2, OsmAnd, otras) — capa raster XYZ
+Para verlos y darles estilo: *Menu → My Places → Tracks*, menú de tres puntos
+del track → **"Show/Hide on map"** para mostrarlo, y **"Appearance"** para color
+y grosor. Tus rutas y la capa de riesgo conviven sin problema: una es un track,
+la otra una superposición raster.
 
-Cualquier app que acepte una URL de teselas XYZ. Pon siempre **zoom mínimo 6 y
-zoom máximo 19** (las teselas llegan a z12; el 19 es para que la app reescale al
-acercar en vez de dejar la capa en blanco). Si no reescala, mira *Zoom por
-encima de 12*, más arriba.
+### DMD2 — necesita licencia
 
-- **DMD2:** *Map Settings → Online Map Layers → Add Custom Raster*, con la URL de
-  `today` y, si existe el interruptor, marcada como overlay. Con la licencia,
-  DMD2 ya trae además sus capas *Active Fires* y *Fire Danger*; esta sigue
-  teniendo sentido porque es el índice oficial del IPMA por concelho.
-- **OsmAnd:** *Menu → Plugins → **Online Maps***, luego *Menu → Configure map →
-  **Overlay map…*** → añadir fuente. Acepta `{z}/{x}/{y}` y `{0}/{1}/{2}`. Pon
-  *Expire time* en unos **120 minutos**, o cacheará el riesgo de ayer. Deja el
-  deslizador de transparencia al máximo: las teselas ya vienen semitransparentes.
-- **OruxMaps** (fuentes en `onlinemapsources.xml`) y **Guru Maps** también
-  aceptan URLs XYZ en su nivel gratuito, sin el límite de mapas de OsmAnd.
+*Map Settings → Online Map Layers → Add Custom Raster*, con la URL de `today`.
+Pero *Online Map Layers* es de pago (**"Online Map Layers needs a license"**), y
+sin licencia no hay forma: DMD2 **no dibuja superficies**, convierte cualquier
+fichero importado en tracks, routes o waypoints. Probado con KML de polígonos
+(entran como rutas) y con un tramado de líneas (descartado).
+
+Lo que sí es gratis en DMD2 y complementa bien esto: el módulo de país
+**Portugal *Avisos***, con alertas de incendio y cierres de carretera de ANEPC.
+Eso cubre los incendios **activos**, que es justo lo que esta capa no hace.
+
+### Otras apps
+
+Cualquiera que acepte URLs XYZ: **OruxMaps** (fuentes en `onlinemapsources.xml`),
+**Guru Maps**. Y para apps que dibujen superficies de verdad, están publicados
+los KMZ con los concelhos fusionados por nivel (`rcm-today.kmz`,
+`rcm-today-alto.kmz` y sus equivalentes de mañana).
 
 ### Si ves datos de ayer (caché)
 
 Las apps guardan las teselas ya vistas. Si la capa no se actualiza:
 
-- OsmAnd: baja el *Expire time* de la fuente.
+- OsmAnd: baja el *Expire time* de la fuente (120 minutos va bien).
 - DMD2: *Clear Auto-Cache*, o desactiva el auto-cache para esa capa.
 - Plan B: publicar además una ruta con fecha (`/d/AAAA-MM-DD/{z}/{x}/{y}.png`)
   y cambiar la URL a diario. No está activado para no duplicar el tamaño del
@@ -153,7 +147,7 @@ Las apps guardan las teselas ya vistas. Si la capa no se actualiza:
 data/concelhos.geojson     278 concelhos (EPSG:4326, simplificado ~0,001°)
 scripts/prepare_concelhos.py   genera ese GeoJSON desde la CAOP (uso puntual)
 scripts/build_tiles.py     descarga RCM d0/d1, rasteriza las teselas y
-                           genera los GPX tramados y los KML/KMZ
+                           genera los KML/KMZ
 site/index.html            visor Leaflet, se copia a public/
 .github/workflows/build.yml  4 veces/dia: build + deploy a Pages
 ```
