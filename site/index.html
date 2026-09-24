@@ -27,17 +27,21 @@
         integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"
         crossorigin="anonymous"></script>
 <script>
+  // Zooms realmente generados; meta.json los confirma al cargar.
   var ZMIN = 6, ZMAX = 12;
+  // Por encima de ZMAX no hay teselas propias: maxNativeZoom hace que Leaflet
+  // reescale la de ZMAX en vez de pedir una que no existe y dejar el hueco vacio.
+  var ZVIEW = 19;
 
-  var map = L.map('map', { zoomControl: true }).setView([39.6, -8.0], 7);
+  var map = L.map('map', { zoomControl: true, maxZoom: ZVIEW }).setView([39.6, -8.0], 7);
 
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '&copy; OpenStreetMap'
+    maxZoom: ZVIEW, attribution: '&copy; OpenStreetMap'
   }).addTo(map);
 
   function rcmLayer(path) {
     return L.tileLayer(path + '/{z}/{x}/{y}.png', {
-      minZoom: ZMIN, maxNativeZoom: ZMAX, maxZoom: 19,
+      minZoom: ZMIN, maxNativeZoom: ZMAX, maxZoom: ZVIEW,
       opacity: 1, attribution: 'RCM &copy; IPMA'
     });
   }
@@ -72,7 +76,21 @@
              '"></span>' + l.rcm + ' - ' + l.label + '</div>';
     }).join('');
     document.getElementById('legend').innerHTML = html;
-    if (m.zoomMax) { ZMIN = m.zoomMin; ZMAX = m.zoomMax; }
+
+    // Ajustar los limites reales de las capas a lo que diga meta.json.
+    if (m.zoomMax) {
+      ZMIN = m.zoomMin;
+      ZMAX = m.zoomMax;
+      [today, tomorrow].forEach(function (layer) {
+        layer.options.minZoom = ZMIN;
+        layer.options.maxNativeZoom = ZMAX;
+        if (m.bbox) {
+          layer.options.bounds = L.latLngBounds(
+            [m.bbox[1], m.bbox[0]], [m.bbox[3], m.bbox[2]]);
+        }
+        if (map.hasLayer(layer)) { layer.redraw(); }
+      });
+    }
   }).catch(function () {
     document.getElementById('meta').textContent = 'meta.json nao disponivel';
   });

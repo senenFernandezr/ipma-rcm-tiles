@@ -17,9 +17,28 @@ Portugal continental, pensada para usarla como *Custom Raster* en **DMD2**
 | Visor de prueba | `https://senenfernandezr.github.io/ipma-rcm-tiles/` |
 | Metadatos | `https://senenfernandezr.github.io/ipma-rcm-tiles/meta.json` |
 
-Zooms disponibles: **6 – 12** (por encima de 12, la app debe escalar la tesela de z12).
-Cobertura: Portugal continental (lon −9,6…−6,1 / lat 36,9…42,2). Fuera de ese
-recuadro no hay teselas.
+Zooms generados: **6 – 12**. Cobertura: Portugal continental
+(lon −9,6…−6,1 / lat 36,9…42,2); fuera de ese recuadro no hay teselas.
+
+### Zoom por encima de 12
+
+El dato es por concelho, así que no gana nada con más resolución: lo correcto es
+que la app **reescale** la tesela de z12. En el visor lo hace Leaflet con
+`maxNativeZoom: 12`, y se ve bien hasta z19.
+
+En DMD2, pon el **zoom máximo de la capa en 19** (no en 12). Si aun así la capa
+desaparece al pasar de z12, es que la app no reescala y hay que generar esos
+zooms. Para no multiplicar el número de teselas, se generan **solo para el
+riesgo alto** y sin rellenar las vacías:
+
+```bash
+python scripts/build_tiles.py --extra-zooms 13-14 --extra-min-rcm 4
+```
+
+Eso añade z13 y z14 únicamente donde el riesgo es 4 o 5 (las zonas de riesgo
+bajo dejan de tener tesela a partir de z13, que es justo lo que interesa ver de
+cerca). Para activarlo de forma permanente, añade esos argumentos al paso
+“Generar teselas” de `.github/workflows/build.yml`.
 
 ## Leyenda
 

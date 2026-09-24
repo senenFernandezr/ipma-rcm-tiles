@@ -208,7 +208,14 @@ def render_tile(tile, entries, draw_borders: bool) -> Image.Image:
     return img
 
 
-def build_layer(name: str, levels: dict, concelhos: list, outdir: Path) -> int:
+def build_layer(name: str, levels: dict, concelhos: list, outdir: Path,
+                specs: list) -> int:
+    """specs: lista de (zoom, min_rcm, fill_empty).
+
+    min_rcm     solo se dibujan los concelhos con rcm >= min_rcm.
+    fill_empty  si True, las teselas sin contenido se escriben transparentes
+                (evita 404); si False no se escriben (zooms extra).
+    """
     layer_dir = outdir / name
     if layer_dir.exists():
         shutil.rmtree(layer_dir)
@@ -229,11 +236,13 @@ def build_layer(name: str, levels: dict, concelhos: list, outdir: Path) -> int:
 
     blank = Image.new("RGBA", (TILE, TILE), (0, 0, 0, 0))
     total = 0
-    for z in ZOOMS:
+    for z, min_rcm, fill_empty in specs:
         dpp = 360.0 / (TILE * (1 << z))          # grados por pixel
         tol = dpp * 0.4
         simplified = []
         for dico, geom in with_data:
+            if levels[dico] < min_rcm:
+                continue
             g = geom.simplify(tol, preserve_topology=True) if tol > 0 else geom
             if not g.is_empty:
                 simplified.append((dico, g))
@@ -253,6 +262,8 @@ def build_layer(name: str, levels: dict, concelhos: list, outdir: Path) -> int:
                     continue
                 entries.append((piece, levels[dico]))
 
+            if not entries and not fill_empty:
+                continue
             path = layer_dir / str(z) / str(tile.x) / ("%d.png" % tile.y)
             path.parent.mkdir(parents=True, exist_ok=True)
             if entries:
@@ -262,7 +273,8 @@ def build_layer(name: str, levels: dict, concelhos: list, outdir: Path) -> int:
                 blank.save(path, "PNG", optimize=True)
             count_z += 1
         total += count_z
-        print("[ok] %s z%d: %d teselas" % (name, z, count_z))
+        extra = "" if min_rcm <= 1 else " (solo rcm>=%d)" % min_rcm
+        print("[ok] %s z%d: %d teselas%s" % (name, z, count_z, extra))
     return total
 
 
@@ -273,14 +285,28 @@ def main() -> int:
     ap.add_argument("--zooms", default="",
                     help="sobrescribe los zooms, p.ej. '6-9' o '6,7,8' (para pruebas)")
     ap.add_argument("--layers", default="today,tomorrow")
+    ap.add_argument("--extra-zooms", default="",
+                    help="zooms adicionales solo para riesgo alto, p.ej. '13-14'. "
+                         "Ahi no se rellenan las teselas vacias, asi que la cuenta "
+                         "crece con el area en riesgo, no con el bbox completo.")
+    ap.add_argument("--extra-min-rcm", type=int, default=4,
+                    help="nivel minimo de rcm que se dibuja en --extra-zooms (por defecto 4)")
     args = ap.parse_args()
 
+    def parse_zooms(text):
+        if "-" in text:
+            a, b = text.split("-", 1)
+            return list(range(int(a), int(b) + 1))
+        return [int(v) for v in text.split(",") if v.strip()]
+
     if args.zooms:
-        if "-" in args.zooms:
-            a, b = args.zooms.split("-", 1)
-            ZOOMS = range(int(a), int(b) + 1)
-        else:
-            ZOOMS = [int(v) for v in args.zooms.split(",") if v.strip()]
+        ZOOMS = parse_zooms(args.zooms)
+
+    specs = [(z, 1, True) for z in ZOOMS]
+    extra = parse_zooms(args.extra_zooms) if args.extra_zooms else []
+    specs += [(z, args.extra_min_rcm, False) for z in extra]
+    specs.sort()
+    all_zooms = [z for z, _m, _f in specs]
 
     outdir = Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -297,7 +323,7 @@ def main() -> int:
 
     t0 = time.time()
     for name, payload in data.items():
-        n = build_layer(name, payload["levels"], concelhos, outdir)
+        n = build_layer(name, payload["levels"], concelhos, outdir, specs)
         print("[ok] capa %s: %d teselas en total" % (name, n))
 
     # IPMA regenera los ficheros una vez al dia (~09:35 UTC). Si se ejecuta antes
@@ -324,8 +350,12 @@ def main() -> int:
         }
     meta = {
         "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "zoomMin": min(ZOOMS),
-        "zoomMax": max(ZOOMS),
+        "zoomMin": min(all_zooms),
+        "zoomMax": max(all_zooms),
+        # hasta zoomFullMax existen todas las teselas del bbox; por encima solo
+        # las de los concelhos con rcm >= extraMinRcm
+        "zoomFullMax": max(ZOOMS),
+        "extraMinRcm": args.extra_min_rcm if extra else None,
         "bbox": list(BBOX),
         "legend": [{"rcm": k, "label": RCM_LABEL[k], "color": RCM_HEX[k]}
                    for k in sorted(RCM_HEX)],
