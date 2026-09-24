@@ -2,8 +2,10 @@ name: build-and-deploy
 
 on:
   schedule:
-    # cada 2 horas, en UTC
-    - cron: "0 */2 * * *"
+    # IPMA regenera rcm-d0/d1 una vez al dia, sobre las 09:35 UTC
+    # (Last-Modified == fileDate). Se lanza poco despues, con reintentos
+    # a lo largo del dia por si la publicacion se retrasa o se corrige.
+    - cron: "45 9,11,14,18 * * *"
   workflow_dispatch:
   push:
     branches: [main]

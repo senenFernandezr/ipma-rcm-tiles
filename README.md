@@ -61,9 +61,17 @@ data/concelhos.geojson     278 concelhos (EPSG:4326, simplificado ~0,001°)
 scripts/prepare_concelhos.py   genera ese GeoJSON desde la CAOP (uso puntual)
 scripts/build_tiles.py     descarga RCM d0/d1 y rasteriza las teselas
 site/index.html            visor Leaflet, se copia a public/
-.github/workflows/build.yml  cada 2 h: build + deploy a Pages
+.github/workflows/build.yml  4 veces/dia: build + deploy a Pages
 ```
 
+- **Cuándo se actualiza:** IPMA regenera `rcm-d0.json` y `rcm-d1.json` una vez
+  al día, sobre las **09:35 UTC** (el `Last-Modified` de la respuesta coincide
+  con el `fileDate` del JSON). El workflow se lanza a las **09:45, 11:45, 14:45
+  y 18:45 UTC**: la primera justo después de la publicación y las otras como
+  reintento si IPMA se retrasa o corrige el dato, o si GitHub retrasa el cron.
+- Antes de las ~09:35 UTC, `rcm-d0` puede seguir apuntando al día anterior. No es
+  un fallo, así que el build no aborta: se marca `"stale": true` en `meta.json`
+  y el visor lo advierte en rojo.
 - Las teselas **no se commitean**: se generan en cada ejecución y solo viajan en
   el artefacto de Pages (~4.400 PNG por capa, ~45 MB, ~1 min de build).
 - Dentro del recuadro, las teselas sin dato se escriben como PNG transparente

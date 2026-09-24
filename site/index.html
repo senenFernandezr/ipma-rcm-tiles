@@ -60,9 +60,13 @@
 
   fetch('meta.json?_=' + Date.now()).then(function (r) { return r.json(); }).then(function (m) {
     var t = (m.layers && m.layers.today) || {};
-    document.getElementById('meta').textContent =
-      'Hoje: ' + (t.dataPrev || '?') + ' | IPMA ' + (t.fileDate || '?') +
+    var el = document.getElementById('meta');
+    el.textContent = 'Hoje: ' + (t.dataPrev || '?') + ' | IPMA ' + (t.fileDate || '?') +
       ' | gerado ' + (m.generatedAt || '?');
+    if (t.stale) {
+      el.innerHTML += '<br><b style="color:#b00">Atencao: dados de ' + t.dataPrev +
+        ', o IPMA ainda nao publicou ' + t.expectedDate + '.</b>';
+    }
     var html = (m.legend || []).map(function (l) {
       return '<div class="legend-row"><span class="swatch" style="background:' + l.color +
              '"></span>' + l.rcm + ' - ' + l.label + '</div>';

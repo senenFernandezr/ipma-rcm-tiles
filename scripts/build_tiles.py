@@ -17,7 +17,7 @@ import math
 import shutil
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import mercantile
@@ -300,13 +300,27 @@ def main() -> int:
         n = build_layer(name, payload["levels"], concelhos, outdir)
         print("[ok] capa %s: %d teselas en total" % (name, n))
 
+    # IPMA regenera los ficheros una vez al dia (~09:35 UTC). Si se ejecuta antes
+    # de esa hora, rcm-d0 todavia puede referirse al dia anterior: no es un error,
+    # pero se marca para que el visor lo advierta.
+    today_utc = datetime.now(timezone.utc).date()
+    expected = {"today": today_utc, "tomorrow": today_utc + timedelta(days=1)}
+
     layers_meta = {}
     for name, payload in data.items():
+        want = expected[name].isoformat()
+        stale = payload["dataPrev"] != want
+        if stale:
+            print("[warn] capa %s: IPMA da dataPrev=%s, se esperaba %s "
+                  "(publicacion diaria ~09:35 UTC aun no disponible)"
+                  % (name, payload["dataPrev"], want), file=sys.stderr)
         layers_meta[name] = {
             "dataPrev": payload["dataPrev"],
             "dataRun": payload["dataRun"],
             "fileDate": payload["fileDate"],
             "concelhos": len(payload["levels"]),
+            "expectedDate": want,
+            "stale": stale,
         }
     meta = {
         "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
