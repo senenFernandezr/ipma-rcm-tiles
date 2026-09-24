@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="pt">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Risco de incendio (RCM) - IPMA</title>
+<title>Riesgo de incendio (RCM) - IPMA</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H"
       crossorigin="anonymous">
@@ -61,34 +61,34 @@
 
   var today = rcmLayer('today').addTo(map);
   var tomorrow = rcmLayer('tomorrow');
-  L.control.layers({}, { 'Hoje (today)': today, 'Amanha (tomorrow)': tomorrow },
+  L.control.layers({}, { 'Hoy (today)': today, 'Mañana (tomorrow)': tomorrow },
                    { collapsed: false }).addTo(map);
 
   var info = L.control({ position: 'bottomleft' });
   info.onAdd = function () {
     var d = L.DomUtil.create('div', 'panel');
-    d.innerHTML = '<h1>Risco de incendio (RCM)</h1><p class="meta" id="meta">a carregar...</p>'
+    d.innerHTML = '<h1>Riesgo de incendio (RCM)</h1><p class="meta" id="meta">cargando...</p>'
       + '<div id="legend"></div>'
-      + '<details><summary>URL para a app</summary>'
+      + '<details><summary>URL para la app</summary>'
       + '<div class="url-row"><code id="u-today"></code>'
-      + '<button type="button" data-layer="today">Copiar (hoje)</button></div>'
+      + '<button type="button" data-layer="today">Copiar (hoy)</button></div>'
       + '<div class="url-row"><code id="u-tomorrow"></code>'
-      + '<button type="button" data-layer="tomorrow">Copiar (amanha)</button></div>'
-      + '<p class="note">Zoom minimo 6, zoom maximo 19.<br>'
+      + '<button type="button" data-layer="tomorrow">Copiar (mañana)</button></div>'
+      + '<p class="note">Zoom mínimo 6, zoom máximo 19.<br>'
       + '<b>OsmAnd</b> (gratis): Configure map &rarr; Overlay map.<br>'
-      + '<b>DMD2</b> (precisa licenca): Map Settings &rarr; Online Map Layers '
+      + '<b>DMD2</b> (necesita licencia): Map Settings &rarr; Online Map Layers '
       + '&rarr; Add Custom Raster.</p></details>'
-      + '<details open><summary>GPX tramado (DMD2 sem licenca)</summary>'
-      + '<div id="files-gpx" class="files">a carregar...</div>'
-      + '<p class="note">Um ficheiro por dia, com um track por nivel. '
-      + 'Descarregar, abrir com &laquo;Import to DMD&raquo; e dar cor a cada '
-      + 'track. DMD2 nao desenha superficies, so linhas: a zona vai tramada, '
-      + 'cruzada no nivel 5.</p></details>'
-      + '<details><summary>KMZ com poligonos (outras apps)</summary>'
-      + '<div id="files-kmz" class="files">a carregar...</div>'
-      + '<p class="note">Poligonos com cor propria. Nao servem no DMD2, que os '
-      + 'importa como rotas.</p></details>'
-      + '<p class="note">Previsao de risco meteorologico de incendio. Nao mostra incendios ativos.</p>';
+      + '<details open><summary>GPX tramado (DMD2 sin licencia)</summary>'
+      + '<div id="files-gpx" class="files">cargando...</div>'
+      + '<p class="note">Un fichero por día, con un track por nivel. '
+      + 'Descárgalo, ábrelo con &laquo;Import to DMD&raquo; y dale color a cada '
+      + 'track. DMD2 no dibuja superficies, solo líneas: la zona va tramada, '
+      + 'cruzada en el nivel 5.</p></details>'
+      + '<details><summary>KMZ con polígonos (otras apps)</summary>'
+      + '<div id="files-kmz" class="files">cargando...</div>'
+      + '<p class="note">Polígonos con color propio. No sirven en DMD2, que los '
+      + 'importa como rutas.</p></details>'
+      + '<p class="note">Previsión de riesgo meteorológico de incendio. No muestra incendios activos.</p>';
     L.DomEvent.disableClickPropagation(d);
     return d;
   };
@@ -105,7 +105,7 @@
   document.querySelectorAll('.url-row button').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var text = urls[btn.getAttribute('data-layer')];
-      var done = function () { btn.textContent = 'Copiado!'; };
+      var done = function () { btn.textContent = '¡Copiado!'; };
       var fail = function () {
         // Sin acceso al portapapeles: se selecciona para copiar a mano.
         var range = document.createRange();
@@ -113,7 +113,7 @@
         var sel = window.getSelection();
         sel.removeAllRanges();
         sel.addRange(range);
-        btn.textContent = 'Copia a mao';
+        btn.textContent = 'Copia a mano';
       };
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(done, fail);
@@ -126,11 +126,11 @@
   fetch('meta.json?_=' + Date.now()).then(function (r) { return r.json(); }).then(function (m) {
     var t = (m.layers && m.layers.today) || {};
     var el = document.getElementById('meta');
-    el.textContent = 'Hoje: ' + (t.dataPrev || '?') + ' | IPMA ' + (t.fileDate || '?') +
-      ' | gerado ' + (m.generatedAt || '?');
+    el.textContent = 'Hoy: ' + (t.dataPrev || '?') + ' | IPMA ' + (t.fileDate || '?') +
+      ' | generado ' + (m.generatedAt || '?');
     if (t.stale) {
-      el.innerHTML += '<br><b style="color:#b00">Atencao: dados de ' + t.dataPrev +
-        ', o IPMA ainda nao publicou ' + t.expectedDate + '.</b>';
+      el.innerHTML += '<br><b style="color:#b00">Atención: datos del ' + t.dataPrev +
+        ', el IPMA aún no ha publicado ' + t.expectedDate + '.</b>';
     }
     var html = (m.legend || []).map(function (l) {
       return '<div class="legend-row"><span class="swatch" style="background:' + l.color +
@@ -138,23 +138,23 @@
     }).join('');
     document.getElementById('legend').innerHTML = html;
 
-    // Ficheiros para apps que nao aceitam raster proprio.
+    // Ficheros para apps que no aceptan capas raster propias.
     var files = m.files || {};
-    var day = function (k) { return k.indexOf('-today') > -1 ? 'Hoje' : 'Amanha'; };
+    var day = function (k) { return k.indexOf('-today') > -1 ? 'Hoy' : 'Mañana'; };
     var gpx = [], kmz = [];
     Object.keys(files).sort().forEach(function (k) {
       var f = files[k];
       if (f.gpx) {
         var niveis = (f.tracks || []).map(function (t) { return t.rcm; })
-          .sort().join(' e ');
-        gpx.push({ sort: (day(k) === 'Hoje' ? 0 : 1),
+          .sort().join(' y ');
+        gpx.push({ sort: (day(k) === 'Hoy' ? 0 : 1),
           html: '<a href="' + f.gpx + '" download>' + day(k) +
-                ' &middot; niveis ' + niveis + ' <span class="size">' +
+                ' &middot; niveles ' + niveis + ' <span class="size">' +
                 Math.round(f.gpxBytes / 1024) + ' KB</span></a>' });
       } else if (f.kmz) {
-        kmz.push({ sort: (day(k) === 'Hoje' ? 0 : 1) * 10 + (f.minRcm > 1 ? 0 : 1),
+        kmz.push({ sort: (day(k) === 'Hoy' ? 0 : 1) * 10 + (f.minRcm > 1 ? 0 : 1),
           html: '<a href="' + f.kmz + '" download>' + day(k) +
-                (f.minRcm > 1 ? ' &middot; so nivel 4-5' : ' &middot; todos os niveis') +
+                (f.minRcm > 1 ? ' &middot; solo nivel 4-5' : ' &middot; todos los niveles') +
                 ' <span class="size">' + Math.round(f.kmzBytes / 1024) + ' KB</span></a>' });
       }
     });
@@ -164,7 +164,7 @@
       list.sort(function (a, b) { return a.sort - b.sort; });
       el.innerHTML = list.length
         ? list.map(function (x) { return x.html; }).join('')
-        : 'sem ficheiros';
+        : 'sin ficheros';
     };
     render('files-gpx', gpx);
     render('files-kmz', kmz);
@@ -184,7 +184,7 @@
       });
     }
   }).catch(function () {
-    document.getElementById('meta').textContent = 'meta.json nao disponivel';
+    document.getElementById('meta').textContent = 'meta.json no disponible';
   });
 </script>
 </body>

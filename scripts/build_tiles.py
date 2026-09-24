@@ -52,11 +52,13 @@ RCM_HEX = {
     4: "#E0261B",   # muy elevado
     5: "#7A0E0E",   # maximo
 }
+# Etiquetas en espanol; el indice es el oficial del IPMA (reduzido, moderado,
+# elevado, muito elevado, maximo).
 RCM_LABEL = {
-    1: "Reduzido",
+    1: "Reducido",
     2: "Moderado",
     3: "Elevado",
-    4: "Muito elevado",
+    4: "Muy elevado",
     5: "Maximo",
 }
 
@@ -286,6 +288,10 @@ def build_layer(name: str, levels: dict, concelhos: list, outdir: Path,
 # --------------------------------------------------------------------------- #
 KML_SIMPLIFY = 0.002      # ~200 m, de sobra a escala de conduccion
 KML_PRECISION = 5
+# El GPX se descarga a diario al movil y Pages no comprime application/gpx+xml,
+# asi que ahi se simplifica mas y se recortan decimales (~11 m de precision).
+GPX_SIMPLIFY = 0.005
+
 
 
 def kml_color(hexrgb: str, alpha: int) -> str:
@@ -441,7 +447,7 @@ def write_gpx(path: Path, title: str, geoms: list, payload: dict) -> dict:
         doc.append("<trk><name>RCM %d - %s</name><type>rcm%d</type>"
                    % (rcm, RCM_LABEL[rcm], rcm))
         for seg in segs:
-            pts = "".join('<trkpt lat="%.5f" lon="%.5f"/>' % (c[1], c[0])
+            pts = "".join('<trkpt lat="%.4f" lon="%.4f"/>' % (c[1], c[0])
                           for c in seg)
             doc.append("<trkseg>%s</trkseg>" % pts)
         doc.append("</trk>")
@@ -522,7 +528,7 @@ def main() -> int:
         for rcm in GPX_LEVELS:
             if rcm not in merged:
                 continue
-            geom = unary_union(merged[rcm]).simplify(KML_SIMPLIFY,
+            geom = unary_union(merged[rcm]).simplify(GPX_SIMPLIFY,
                                                      preserve_topology=True)
             if not geom.is_empty:
                 geoms.append((rcm, geom))
