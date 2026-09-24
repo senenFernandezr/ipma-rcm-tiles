@@ -45,13 +45,6 @@ ALPHA = 120       # transparencia del relleno (0-255)
 BORDER_MIN_Z = 9
 BORDER_RGBA = (90, 90, 90, 140)
 
-RCM_HEX = {
-    1: "#2E9E44",   # reducido
-    2: "#F2D21B",   # moderado
-    3: "#F28C1B",   # elevado
-    4: "#E0261B",   # muy elevado
-    5: "#7A0E0E",   # maximo
-}
 # Etiquetas en espanol; el indice es el oficial del IPMA (reduzido, moderado,
 # elevado, muito elevado, maximo).
 RCM_LABEL = {
@@ -62,13 +55,23 @@ RCM_LABEL = {
     5: "Maximo",
 }
 
+# Dos bandas en vez de cinco tonos: a plena luz y en marcha, cinco colores no se
+# distinguen. Verde = se puede circular; rojo = riesgo alto.
+BANDS = [
+    {"key": "verde", "levels": (1, 2, 3), "color": "#2E9E44",
+     "label": "Reducido a elevado (1-3)"},
+    {"key": "rojo", "levels": (4, 5), "color": "#E0261B",
+     "label": "Muy elevado o maximo (4-5)"},
+]
+BAND_OF = {rcm: band for band in BANDS for rcm in band["levels"]}
+
 
 def hex_to_rgba(h: str, alpha: int) -> tuple[int, int, int, int]:
     h = h.lstrip("#")
     return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), alpha)
 
 
-FILL = {k: hex_to_rgba(v, ALPHA) for k, v in RCM_HEX.items()}
+FILL = {rcm: hex_to_rgba(band["color"], ALPHA) for rcm, band in BAND_OF.items()}
 
 
 # --------------------------------------------------------------------------- #
@@ -319,17 +322,17 @@ def _kml_polygons(geom) -> str:
 
 def write_kml(path: Path, title: str, levels: dict, concelhos: list,
               min_rcm: int, payload: dict) -> int:
-    """Un Placemark por nivel, con los concelhos de ese nivel fusionados.
+    """Un Placemark por banda de color, con sus concelhos fusionados.
 
     Fusionar quita las fronteras internas: menos vertices, fichero mas pequeno
-    y un mapa mas legible en marcha. Devuelve el numero de niveles escritos.
+    y un mapa mas legible en marcha. Devuelve el numero de bandas escritas.
     """
-    by_level: dict = {}
+    by_band: dict = {}
     for dico, geom in concelhos:
         rcm = levels.get(dico)
         if rcm is None or rcm < min_rcm:
             continue
-        by_level.setdefault(rcm, []).append((dico, geom))
+        by_band.setdefault(BAND_OF[rcm]["key"], []).append((dico, geom))
 
     doc = ['<?xml version="1.0" encoding="UTF-8"?>',
            '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>',
@@ -338,23 +341,27 @@ def write_kml(path: Path, title: str, levels: dict, concelhos: list,
            "(atualizado %s). Nao mostra incendios ativos.</description>"
            % (payload["dataPrev"], payload["fileDate"])]
 
-    for rcm in sorted(RCM_HEX):
+    for band in BANDS:
         doc.append(
-            '<Style id="rcm%d"><LineStyle><color>%s</color><width>2</width></LineStyle>'
+            '<Style id="%s"><LineStyle><color>%s</color><width>2</width></LineStyle>'
             '<PolyStyle><color>%s</color><fill>1</fill><outline>1</outline></PolyStyle></Style>'
-            % (rcm, kml_color(RCM_HEX[rcm], 220), kml_color(RCM_HEX[rcm], ALPHA)))
+            % (band["key"], kml_color(band["color"], 220),
+               kml_color(band["color"], ALPHA)))
 
     written = 0
-    for rcm in sorted(by_level):
-        items = by_level[rcm]
+    for band in BANDS:
+        items = by_band.get(band["key"])
+        if not items:
+            continue
         merged = unary_union([g for _d, g in items])
         if KML_SIMPLIFY > 0:
             merged = merged.simplify(KML_SIMPLIFY, preserve_topology=True)
         if merged.is_empty:
             continue
-        doc.append("<Placemark><name>%d - %s (%d concelhos)</name>"
-                   "<styleUrl>#rcm%d</styleUrl><MultiGeometry>%s</MultiGeometry></Placemark>"
-                   % (rcm, RCM_LABEL[rcm], len(items), rcm, _kml_polygons(merged)))
+        doc.append("<Placemark><name>%s (%d concelhos)</name>"
+                   "<styleUrl>#%s</styleUrl><MultiGeometry>%s</MultiGeometry></Placemark>"
+                   % (band["label"], len(items), band["key"],
+                      _kml_polygons(merged)))
         written += 1
 
     doc.append("</Document></kml>")
@@ -439,11 +446,11 @@ def main() -> int:
                 zf.write(kml_path, "doc.kml")
             files_meta["kmz-" + name + suffix] = {
                 "kml": kml_path.name, "kmz": kmz_path.name,
-                "levels": n, "minRcm": min_rcm,
+                "bands": n, "minRcm": min_rcm,
                 "kmlBytes": kml_path.stat().st_size,
                 "kmzBytes": kmz_path.stat().st_size,
             }
-            print("[ok] %s: %d niveles, KML %.0f KB, KMZ %.0f KB"
+            print("[ok] %s: %d bandas, KML %.0f KB, KMZ %.0f KB"
                   % (stem, n, kml_path.stat().st_size / 1024,
                      kmz_path.stat().st_size / 1024))
 
@@ -472,8 +479,9 @@ def main() -> int:
         "zoomFullMax": max(ZOOMS),
         "extraMinRcm": args.extra_min_rcm if extra else None,
         "bbox": list(BBOX),
-        "legend": [{"rcm": k, "label": RCM_LABEL[k], "color": RCM_HEX[k]}
-                   for k in sorted(RCM_HEX)],
+        "legend": [{"band": b["key"], "levels": list(b["levels"]),
+                    "label": b["label"], "color": b["color"]}
+                   for b in BANDS],
         "layers": layers_meta,
         "files": files_meta,
     }

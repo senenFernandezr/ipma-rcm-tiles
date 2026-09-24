@@ -46,16 +46,20 @@ cerca). Para activarlo de forma permanente, añade esos argumentos al paso
 
 ## Leyenda
 
-| RCM | Nivel | Color |
+Dos colores, no cinco. Con cinco tonos, a plena luz y en marcha, los cambios no
+se distinguen; el criterio es binario y es el que importa conduciendo:
+
+| RCM | Nivel IPMA | Color |
 |---|---|---|
-| 1 | Reduzido | `#2E9E44` |
-| 2 | Moderado | `#F2D21B` |
-| 3 | Elevado | `#F28C1B` |
-| 4 | Muito elevado | `#E0261B` |
-| 5 | Máximo | `#7A0E0E` |
+| 1, 2, 3 | Reducido, moderado, elevado | verde `#2E9E44` |
+| 4, 5 | Muy elevado, máximo | rojo `#E0261B` |
 
 Relleno con alfa 120/255 para que se siga viendo el mapa base. Bordes de
-concelho a partir de z9.
+concelho a partir de z9, para saber dónde acaba cada uno.
+
+El agrupamiento está en `BANDS`, en `scripts/build_tiles.py`: cambiar el reparto
+de niveles o los colores es editar esa lista. `meta.json` publica la leyenda, así
+que el visor se adapta solo.
 
 ## Configuración en el móvil
 
