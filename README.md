@@ -12,10 +12,10 @@ Portugal continental, pensada para usarla como *Custom Raster* en **DMD2**
 
 | Capa | URL |
 |---|---|
-| Hoy | `https://senenFernandezr.github.io/ipma-rcm-tiles/today/{z}/{x}/{y}.png` |
-| Mañana | `https://senenFernandezr.github.io/ipma-rcm-tiles/tomorrow/{z}/{x}/{y}.png` |
-| Visor de prueba | `https://senenFernandezr.github.io/ipma-rcm-tiles/` |
-| Metadatos | `https://senenFernandezr.github.io/ipma-rcm-tiles/meta.json` |
+| Hoy | `https://senenfernandezr.github.io/ipma-rcm-tiles/today/{z}/{x}/{y}.png` |
+| Mañana | `https://senenfernandezr.github.io/ipma-rcm-tiles/tomorrow/{z}/{x}/{y}.png` |
+| Visor de prueba | `https://senenfernandezr.github.io/ipma-rcm-tiles/` |
+| Metadatos | `https://senenfernandezr.github.io/ipma-rcm-tiles/meta.json` |
 
 Zooms disponibles: **6 – 12** (por encima de 12, la app debe escalar la tesela de z12).
 Cobertura: Portugal continental (lon −9,6…−6,1 / lat 36,9…42,2). Fuera de ese
