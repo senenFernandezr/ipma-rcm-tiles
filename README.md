@@ -16,11 +16,12 @@ Portugal continental, pensada para usarla como *Custom Raster* en **DMD2**
 | Mañana | `https://senenfernandezr.github.io/ipma-rcm-tiles/tomorrow/{z}/{x}/{y}.png` |
 | Visor de prueba | `https://senenfernandezr.github.io/ipma-rcm-tiles/` |
 | Metadatos | `https://senenfernandezr.github.io/ipma-rcm-tiles/meta.json` |
+| GPX hoy, nivel 5 | `https://senenfernandezr.github.io/ipma-rcm-tiles/rcm-today-n5.gpx` |
+| GPX hoy, nivel 4 | `https://senenfernandezr.github.io/ipma-rcm-tiles/rcm-today-n4.gpx` |
 | KMZ hoy (nivel 4-5) | `https://senenfernandezr.github.io/ipma-rcm-tiles/rcm-today-alto.kmz` |
-| KMZ hoy (todos) | `https://senenfernandezr.github.io/ipma-rcm-tiles/rcm-today.kmz` |
 
-Las teselas necesitan una app que acepte capas raster propias; los **KMZ
-funcionan en DMD2 sin licencia** (ver más abajo).
+Las teselas necesitan una app que acepte capas raster propias, que en DMD2 es de
+pago. Los **GPX tramados funcionan en DMD2 sin licencia** (ver más abajo).
 
 Zooms generados: **6 – 12**. Cobertura: Portugal continental
 (lon −9,6…−6,1 / lat 36,9…42,2); fuera de ese recuadro no hay teselas.
@@ -62,42 +63,58 @@ concelho a partir de z9.
 
 Hay dos formas de consumir esto, según si tienes licencia de DMD2 o no.
 
-### DMD2 sin licencia — ficheros KMZ
+### DMD2 sin licencia — GPX tramado
 
-*Add Custom Raster* vive dentro de *Online Map Layers*, y la documentación
-oficial dice que **"Online Map Layers needs a license"**. Pero **abrir ficheros
-sí es gratis**: DMD2 importa GPX, KML, KMZ, GeoJSON, TCX, FIT, ITN y CSV, y los
-KML/KMZ incluyen *"lines, points, areas and timed tracks"* — áreas incluidas.
+*Add Custom Raster* vive dentro de *Online Map Layers*, y la documentación es
+clara: **"Online Map Layers needs a license"**. Importar ficheros sí es gratis
+(GPX, KML, KMZ, GeoJSON, TCX, FIT, ITN, CSV), pero **DMD2 no tiene concepto de
+área**: convierte todo en tracks, routes y waypoints, y la documentación no
+menciona superficies rellenas en ningún formato. Los KML con polígonos entran
+como rutas, sin relleno. Probado.
 
-Así que el build publica la misma capa como polígonos KMZ:
+La solución es la de toda la vida en cartografía: **rellenar la zona con
+líneas**. El build genera un GPX por nivel con el contorno más un tramado:
 
-| Fichero | Contenido |
-|---|---|
-| `rcm-today-alto.kmz` | hoy, solo niveles 4 y 5 |
-| `rcm-today.kmz` | hoy, los cinco niveles |
-| `rcm-tomorrow-alto.kmz` | mañana, solo niveles 4 y 5 |
-| `rcm-tomorrow.kmz` | mañana, los cinco niveles |
+| Fichero | Nivel | Tramado |
+|---|---|---|
+| `rcm-today-n5.gpx` | 5, máximo | cuadrícula cruzada, ~2 km |
+| `rcm-today-n4.gpx` | 4, muy elevado | franjas horizontales, ~2,7 km |
+| `rcm-today-n3.gpx` | 3, elevado | franjas horizontales, ~4 km |
 
-Unos 90–120 KB cada uno. Los concelhos del mismo nivel van **fusionados** en un
-solo polígono por nivel: quita las fronteras interiores, así que el fichero pesa
-menos y se lee mejor en marcha.
+Y los mismos tres para `tomorrow`. Cada tramo va en su propio `<trkseg>`, que en
+GPX es discontinuo por definición, así que no se unen con líneas falsas.
+
+Un fichero por nivel no es capricho: **DMD2 no lee el color del fichero**, lo
+elige el usuario. Separados, cada uno se colorea de una vez con **"Set Colour
+For All"**.
 
 Cómo usarlo:
 
-1. En el móvil, abre el visor y toca el enlace del fichero que quieras (están en
-   *Ficheiros KMZ*, dentro del panel de la leyenda).
-2. En la notificación de descarga, **Abrir con → Import to DMD**. También vale
-   compartir el fichero desde el gestor de archivos.
-3. Aparece en *Loaded GPX Files*, en el mapa.
+1. En el visor, sección *GPX tramado*, descarga el nivel que te interese
+   (normalmente el 5 y el 4).
+2. **Abrir con → Import to DMD**.
+3. En el gestor de GPX, **"Set Colour For All"** a cada fichero: rojo para el 4,
+   rojo oscuro o morado para el 5.
+4. En *Line Appearance*, ajusta **grosor y opacidad** a tu gusto: con líneas
+   gruesas y algo transparentes el tramado se lee como una mancha.
 
-**Hay que repetirlo cada día**, porque la previsión cambia. La URL es fija, así
-que puedes dejar un acceso directo en la pantalla de inicio y son dos toques.
+El nivel 5 va en cuadrícula cruzada a propósito: se distingue del 4 por densidad
+aunque les pongas el mismo color.
 
-Dos avisos honestos: la documentación confirma que las áreas se importan, pero
-**no dice si respeta el color de relleno** del KML. Si DMD2 dibuja solo el
-contorno, se sigue viendo perfectamente qué zonas están en nivel 4–5, que es lo
-que importa. Y el KML no es una capa de teselas: no se reescala ni se recorta por
-zoom, se dibuja tal cual.
+Cuesta unos 18.000 puntos entre los dos ficheros de riesgo alto, frente a los
+~1,5 millones que la documentación da como capacidad del dispositivo. No es un
+problema de memoria.
+
+**Hay que repetirlo cada día**, porque la previsión cambia y esto es un fichero,
+no una capa que se refresque sola. Las URLs son fijas: deja un acceso directo en
+la pantalla de inicio.
+
+### Otras apps sin raster propio — KMZ con polígonos
+
+`rcm-today.kmz`, `rcm-today-alto.kmz` y sus equivalentes de `tomorrow` llevan
+los concelhos fusionados por nivel, como polígonos con relleno y color propio en
+el fichero. **En DMD2 no sirven** (los importa como rutas), pero funcionan en
+cualquier app que sí dibuje superficies.
 
 ### Con licencia (DMD2, OsmAnd, otras) — capa raster XYZ
 
@@ -134,7 +151,7 @@ Las apps guardan las teselas ya vistas. Si la capa no se actualiza:
 data/concelhos.geojson     278 concelhos (EPSG:4326, simplificado ~0,001°)
 scripts/prepare_concelhos.py   genera ese GeoJSON desde la CAOP (uso puntual)
 scripts/build_tiles.py     descarga RCM d0/d1, rasteriza las teselas y
-                           genera los KML/KMZ
+                           genera los GPX tramados y los KML/KMZ
 site/index.html            visor Leaflet, se copia a public/
 .github/workflows/build.yml  4 veces/dia: build + deploy a Pages
 ```

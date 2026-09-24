@@ -78,11 +78,15 @@
       + '<b>OsmAnd</b> (gratis): Configure map &rarr; Overlay map.<br>'
       + '<b>DMD2</b> (precisa licenca): Map Settings &rarr; Online Map Layers '
       + '&rarr; Add Custom Raster.</p></details>'
-      + '<details open><summary>Ficheiros KMZ (DMD2 sem licenca)</summary>'
-      + '<div id="files" class="files">a carregar...</div>'
-      + '<p class="note">Descarregar no telefone e abrir com '
-      + '&laquo;Import to DMD&raquo;. Repetir cada dia: os ficheiros mudam '
-      + 'com a previsao.</p></details>'
+      + '<details open><summary>GPX tramado (DMD2 sem licenca)</summary>'
+      + '<div id="files-gpx" class="files">a carregar...</div>'
+      + '<p class="note">Um ficheiro por nivel. Descarregar, abrir com '
+      + '&laquo;Import to DMD&raquo; e dar-lhe cor com <b>Set Colour For All</b>. '
+      + 'DMD2 nao desenha superficies, so linhas: a zona vai tramada.</p></details>'
+      + '<details><summary>KMZ com poligonos (outras apps)</summary>'
+      + '<div id="files-kmz" class="files">a carregar...</div>'
+      + '<p class="note">Poligonos com cor propria. Nao servem no DMD2, que os '
+      + 'importa como rotas.</p></details>'
       + '<p class="note">Previsao de risco meteorologico de incendio. Nao mostra incendios ativos.</p>';
     L.DomEvent.disableClickPropagation(d);
     return d;
@@ -133,22 +137,34 @@
     }).join('');
     document.getElementById('legend').innerHTML = html;
 
-    // Enlaces a los KMZ, para las apps que no admiten raster propio.
-    var labels = {
-      'rcm-today-alto': 'Hoje, so nivel 4-5',
-      'rcm-today': 'Hoje, todos os niveis',
-      'rcm-tomorrow-alto': 'Amanha, so nivel 4-5',
-      'rcm-tomorrow': 'Amanha, todos os niveis'
-    };
-    var box = document.getElementById('files');
-    var rows = Object.keys(labels).filter(function (k) {
-      return m.files && m.files[k];
-    }).map(function (k) {
-      var f = m.files[k];
-      return '<a href="' + f.kmz + '" download>' + labels[k] +
-             ' <span class="size">(' + Math.round(f.kmzBytes / 1024) + ' KB)</span></a>';
+    // Ficheiros para apps que nao aceitam raster proprio.
+    var files = m.files || {};
+    var day = function (k) { return k.indexOf('-today') > -1 ? 'Hoje' : 'Amanha'; };
+    var gpx = [], kmz = [];
+    Object.keys(files).sort().forEach(function (k) {
+      var f = files[k];
+      if (f.gpx) {
+        gpx.push({ sort: (day(k) === 'Hoje' ? 0 : 1) * 10 - f.rcm,
+          html: '<a href="' + f.gpx + '" download>' + day(k) + ' &middot; nivel ' +
+                f.rcm + ' (' + f.label + ') <span class="size">' +
+                Math.round(f.gpxBytes / 1024) + ' KB</span></a>' });
+      } else if (f.kmz) {
+        kmz.push({ sort: (day(k) === 'Hoje' ? 0 : 1) * 10 + (f.minRcm > 1 ? 0 : 1),
+          html: '<a href="' + f.kmz + '" download>' + day(k) +
+                (f.minRcm > 1 ? ' &middot; so nivel 4-5' : ' &middot; todos os niveis') +
+                ' <span class="size">' + Math.round(f.kmzBytes / 1024) + ' KB</span></a>' });
+      }
     });
-    box.innerHTML = rows.length ? rows.join('') : 'sem ficheiros';
+    var render = function (id, list) {
+      var el = document.getElementById(id);
+      if (!el) { return; }
+      list.sort(function (a, b) { return a.sort - b.sort; });
+      el.innerHTML = list.length
+        ? list.map(function (x) { return x.html; }).join('')
+        : 'sem ficheiros';
+    };
+    render('files-gpx', gpx);
+    render('files-kmz', kmz);
 
     // Ajustar los limites reales de las capas a lo que diga meta.json.
     if (m.zoomMax) {

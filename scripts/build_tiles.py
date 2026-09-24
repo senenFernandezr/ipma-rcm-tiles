@@ -24,7 +24,7 @@ from pathlib import Path
 import mercantile
 import requests
 from PIL import Image, ImageDraw
-from shapely.geometry import box, shape
+from shapely.geometry import LineString, box, shape
 from shapely.ops import unary_union
 from shapely.strtree import STRtree
 
@@ -359,6 +359,81 @@ def write_kml(path: Path, title: str, levels: dict, concelhos: list,
     return written
 
 
+# --------------------------------------------------------------------------- #
+# GPX tramado: DMD2 no dibuja superficies, solo lineas. Se rellena cada zona de
+# riesgo con lineas paralelas, que es como se sombrea un area en un plano.
+# El color no se lee del fichero (lo elige el usuario con "Set Colour For All"),
+# asi que va un fichero por nivel.
+# --------------------------------------------------------------------------- #
+# Separacion del tramado en grados de latitud (0.018 ~ 2 km).
+HATCH = {3: 0.036, 4: 0.024, 5: 0.018}
+# El nivel maximo se traza tambien en vertical: al cruzarse se ve mas denso
+# aunque el usuario le ponga el mismo color.
+HATCH_CROSS = {5}
+MEAN_LAT = 39.6
+
+
+def hatch_lines(geom, spacing: float, cross: bool) -> list:
+    """Segmentos del tramado, cada uno como lista de puntos (lon, lat)."""
+    minx, miny, maxx, maxy = geom.bounds
+    out = []
+
+    def spans(line):
+        piece = line.intersection(geom)
+        if piece.is_empty:
+            return
+        parts = piece.geoms if piece.geom_type.startswith("Multi") else [piece]
+        for part in parts:
+            if part.geom_type == "LineString" and part.length > 0:
+                coords = list(part.coords)
+                out.append([coords[0], coords[-1]])
+
+    y = miny + spacing / 2.0
+    while y < maxy:
+        spans(LineString([(minx - 0.01, y), (maxx + 0.01, y)]))
+        y += spacing
+
+    if cross:
+        # misma separacion visual: 1 grado de longitud es mas corto que 1 de latitud
+        step = spacing / math.cos(math.radians(MEAN_LAT))
+        x = minx + step / 2.0
+        while x < maxx:
+            spans(LineString([(x, miny - 0.01), (x, maxy + 0.01)]))
+            x += step
+
+    return out
+
+
+def outline_rings(geom) -> list:
+    rings = []
+    for poly in polygons_of(geom):
+        for ring in [poly.exterior] + list(poly.interiors):
+            rings.append(list(ring.coords))
+    return rings
+
+
+def write_gpx(path: Path, title: str, rcm: int, geom, payload: dict) -> int:
+    """Un <trk> con el contorno y el tramado, cada tramo en su propio <trkseg>.
+
+    Los trkseg son discontinuos por definicion en GPX, asi que la app no los une.
+    """
+    segs = outline_rings(geom) + hatch_lines(geom, HATCH.get(rcm, 0.024),
+                                             rcm in HATCH_CROSS)
+    doc = ['<?xml version="1.0" encoding="UTF-8"?>',
+           '<gpx version="1.1" creator="ipma-rcm-tiles" '
+           'xmlns="http://www.topografix.com/GPX/1/1">',
+           "<metadata><name>%s</name><desc>Risco de incendio IPMA nivel %d (%s), "
+           "previsao para %s. Nao mostra incendios ativos.</desc></metadata>"
+           % (title, rcm, RCM_LABEL[rcm], payload["dataPrev"]),
+           "<trk><name>%s</name>" % title]
+    for seg in segs:
+        pts = "".join('<trkpt lat="%.5f" lon="%.5f"/>' % (c[1], c[0]) for c in seg)
+        doc.append("<trkseg>%s</trkseg>" % pts)
+    doc.append("</trk></gpx>")
+    path.write_text("".join(doc), encoding="utf-8")
+    return len(segs)
+
+
 def main() -> int:
     global ZOOMS
     ap = argparse.ArgumentParser()
@@ -413,8 +488,37 @@ def main() -> int:
     today_utc = datetime.now(timezone.utc).date()
     expected = {"today": today_utc, "tomorrow": today_utc + timedelta(days=1)}
 
-    # Ficheros KML/KMZ de la misma capa, para apps sin raster propio.
+    # Ficheros para apps sin raster propio.
     files_meta = {}
+
+    # GPX tramado, un fichero por nivel: es lo unico que DMD2 sabe dibujar sin
+    # licencia, y al ser un fichero por nivel se le puede dar color a cada uno.
+    for name, payload in data.items():
+        merged = {}
+        for dico, geom in concelhos:
+            rcm = payload["levels"].get(dico)
+            if rcm is not None:
+                merged.setdefault(rcm, []).append(geom)
+        for rcm in sorted(HATCH, reverse=True):
+            if rcm not in merged:
+                continue
+            geom = unary_union(merged[rcm]).simplify(KML_SIMPLIFY,
+                                                     preserve_topology=True)
+            if geom.is_empty:
+                continue
+            stem = "rcm-%s-n%d" % (name, rcm)
+            gpx_path = outdir / (stem + ".gpx")
+            title = "RCM %d %s - %s" % (rcm, RCM_LABEL[rcm], payload["dataPrev"])
+            segs = write_gpx(gpx_path, title, rcm, geom, payload)
+            files_meta[stem] = {
+                "gpx": gpx_path.name, "rcm": rcm, "label": RCM_LABEL[rcm],
+                "concelhos": len(merged[rcm]), "segments": segs,
+                "gpxBytes": gpx_path.stat().st_size,
+            }
+            print("[ok] %s: %d concelhos, %d tramos, GPX %.0f KB"
+                  % (stem, len(merged[rcm]), segs, gpx_path.stat().st_size / 1024))
+
+    # KML/KMZ: poligonos con relleno, para apps que si dibujan superficies.
     for name, payload in data.items():
         for suffix, min_rcm in (("", 1), ("-alto", 4)):
             stem = "rcm-%s%s" % (name, suffix)
