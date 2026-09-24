@@ -81,9 +81,17 @@ añadir fuente, con la URL de la tabla de arriba, zoom 6–12.
 **3. Ponerla como superposición.** *Menu → Configure map → **Overlay map…*** →
 elige `RCM hoy (IPMA)`. El mapa offline de Portugal sigue debajo.
 
-**4. Ajustar la caducidad.** En la fuente, pon **Expire time ≈ 120 minutos**. Sin
-eso OsmAnd cachea las teselas y mañana seguirías viendo el riesgo de hoy. Es el
-paso que más se olvida.
+**4. Ajustar la caducidad.** *Menu → **Maps & Resources** → Local → Map sources
+→* toca la fuente *→* **⋮** *→* **Edit**. Ahí está el campo **"Expire time"**, en
+minutos: pon **120**.
+
+No cuelga de *Configure map*, que es donde uno lo busca. Y su valor por defecto
+es en blanco, que significa **no recargar nunca**: sin tocarlo, mañana seguirías
+viendo el riesgo de hoy. Es el paso que más se olvida.
+
+En ese mismo menú **⋮** está **"Clear all tiles"**, que borra la caché de la
+fuente. Tenlo localizado: hay informes de que el refresco de teselas online no
+siempre es fiable, y eso lo resuelve a mano.
 
 **5. Opacidad.** Usa el deslizador de transparencia de la superposición. Las
 teselas ya vienen semitransparentes (alfa 120), así que empieza con el
