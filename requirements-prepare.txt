@@ -1,0 +1,3 @@
+# Solo para scripts/prepare_concelhos.py (ejecucion puntual en local)
+-r requirements.txt
+pyproj>=3.6

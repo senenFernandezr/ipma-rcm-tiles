@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Risco de incendio (RCM) - IPMA</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H"
+      crossorigin="anonymous">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #map { position: absolute; inset: 0; }
+  .panel {
+    background: rgba(255,255,255,.93); padding: 8px 10px; border-radius: 8px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.3); max-width: 230px;
+  }
+  .panel h1 { font-size: 14px; margin: 0 0 4px; }
+  .panel .meta { font-size: 12px; color: #444; margin: 0 0 6px; }
+  .legend-row { display: flex; align-items: center; gap: 6px; margin: 2px 0; font-size: 12px; }
+  .swatch { width: 16px; height: 12px; border: 1px solid rgba(0,0,0,.35); border-radius: 2px; }
+  .note { font-size: 11px; color: #666; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"
+        crossorigin="anonymous"></script>
+<script>
+  var ZMIN = 6, ZMAX = 12;
+
+  var map = L.map('map', { zoomControl: true }).setView([39.6, -8.0], 7);
+
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+
+  function rcmLayer(path) {
+    return L.tileLayer(path + '/{z}/{x}/{y}.png', {
+      minZoom: ZMIN, maxNativeZoom: ZMAX, maxZoom: 19,
+      opacity: 1, attribution: 'RCM &copy; IPMA'
+    });
+  }
+
+  var today = rcmLayer('today').addTo(map);
+  var tomorrow = rcmLayer('tomorrow');
+  L.control.layers({}, { 'Hoje (today)': today, 'Amanha (tomorrow)': tomorrow },
+                   { collapsed: false }).addTo(map);
+
+  var info = L.control({ position: 'bottomleft' });
+  info.onAdd = function () {
+    var d = L.DomUtil.create('div', 'panel');
+    d.innerHTML = '<h1>Risco de incendio (RCM)</h1><p class="meta" id="meta">a carregar...</p>'
+      + '<div id="legend"></div>'
+      + '<p class="note">Previsao de risco meteorologico de incendio. Nao mostra incendios ativos.</p>';
+    L.DomEvent.disableClickPropagation(d);
+    return d;
+  };
+  info.addTo(map);
+
+  fetch('meta.json?_=' + Date.now()).then(function (r) { return r.json(); }).then(function (m) {
+    var t = (m.layers && m.layers.today) || {};
+    document.getElementById('meta').textContent =
+      'Hoje: ' + (t.dataPrev || '?') + ' | IPMA ' + (t.fileDate || '?') +
+      ' | gerado ' + (m.generatedAt || '?');
+    var html = (m.legend || []).map(function (l) {
+      return '<div class="legend-row"><span class="swatch" style="background:' + l.color +
+             '"></span>' + l.rcm + ' - ' + l.label + '</div>';
+    }).join('');
+    document.getElementById('legend').innerHTML = html;
+    if (m.zoomMax) { ZMIN = m.zoomMin; ZMAX = m.zoomMax; }
+  }).catch(function () {
+    document.getElementById('meta').textContent = 'meta.json nao disponivel';
+  });
+</script>
+</body>
+</html>

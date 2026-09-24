@@ -1,0 +1,4 @@
+requests>=2.31
+shapely>=2.0
+mercantile>=1.2
+Pillow>=10.0
