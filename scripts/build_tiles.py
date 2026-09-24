@@ -17,6 +17,7 @@ import math
 import shutil
 import sys
 import time
+import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -24,6 +25,7 @@ import mercantile
 import requests
 from PIL import Image, ImageDraw
 from shapely.geometry import box, shape
+from shapely.ops import unary_union
 from shapely.strtree import STRtree
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -278,6 +280,85 @@ def build_layer(name: str, levels: dict, concelhos: list, outdir: Path,
     return total
 
 
+# --------------------------------------------------------------------------- #
+# KML: misma capa en formato de fichero, para apps que no admiten raster propio
+# (el Add Custom Raster de DMD2 necesita licencia; abrir KML/KMZ/GeoJSON no).
+# --------------------------------------------------------------------------- #
+KML_SIMPLIFY = 0.002      # ~200 m, de sobra a escala de conduccion
+KML_PRECISION = 5
+
+
+def kml_color(hexrgb: str, alpha: int) -> str:
+    """KML usa aabbggrr, no #rrggbb."""
+    h = hexrgb.lstrip("#")
+    return "%02x%s%s%s" % (alpha, h[4:6], h[2:4], h[0:2])
+
+
+def _kml_ring(ring) -> str:
+    fmt = "%%.%df,%%.%df" % (KML_PRECISION, KML_PRECISION)
+    return " ".join(fmt % (c[0], c[1]) for c in ring.coords)
+
+
+def _kml_polygons(geom) -> str:
+    out = []
+    for poly in polygons_of(geom):
+        parts = ["<Polygon><outerBoundaryIs><LinearRing><coordinates>",
+                 _kml_ring(poly.exterior),
+                 "</coordinates></LinearRing></outerBoundaryIs>"]
+        for hole in poly.interiors:
+            parts += ["<innerBoundaryIs><LinearRing><coordinates>",
+                      _kml_ring(hole),
+                      "</coordinates></LinearRing></innerBoundaryIs>"]
+        parts.append("</Polygon>")
+        out.append("".join(parts))
+    return "".join(out)
+
+
+def write_kml(path: Path, title: str, levels: dict, concelhos: list,
+              min_rcm: int, payload: dict) -> int:
+    """Un Placemark por nivel, con los concelhos de ese nivel fusionados.
+
+    Fusionar quita las fronteras internas: menos vertices, fichero mas pequeno
+    y un mapa mas legible en marcha. Devuelve el numero de niveles escritos.
+    """
+    by_level: dict = {}
+    for dico, geom in concelhos:
+        rcm = levels.get(dico)
+        if rcm is None or rcm < min_rcm:
+            continue
+        by_level.setdefault(rcm, []).append((dico, geom))
+
+    doc = ['<?xml version="1.0" encoding="UTF-8"?>',
+           '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>',
+           "<name>%s</name>" % title,
+           "<description>Risco de incendio IPMA, previsao para %s "
+           "(atualizado %s). Nao mostra incendios ativos.</description>"
+           % (payload["dataPrev"], payload["fileDate"])]
+
+    for rcm in sorted(RCM_HEX):
+        doc.append(
+            '<Style id="rcm%d"><LineStyle><color>%s</color><width>2</width></LineStyle>'
+            '<PolyStyle><color>%s</color><fill>1</fill><outline>1</outline></PolyStyle></Style>'
+            % (rcm, kml_color(RCM_HEX[rcm], 220), kml_color(RCM_HEX[rcm], ALPHA)))
+
+    written = 0
+    for rcm in sorted(by_level):
+        items = by_level[rcm]
+        merged = unary_union([g for _d, g in items])
+        if KML_SIMPLIFY > 0:
+            merged = merged.simplify(KML_SIMPLIFY, preserve_topology=True)
+        if merged.is_empty:
+            continue
+        doc.append("<Placemark><name>%d - %s (%d concelhos)</name>"
+                   "<styleUrl>#rcm%d</styleUrl><MultiGeometry>%s</MultiGeometry></Placemark>"
+                   % (rcm, RCM_LABEL[rcm], len(items), rcm, _kml_polygons(merged)))
+        written += 1
+
+    doc.append("</Document></kml>")
+    path.write_text("".join(doc), encoding="utf-8")
+    return written
+
+
 def main() -> int:
     global ZOOMS
     ap = argparse.ArgumentParser()
@@ -332,6 +413,35 @@ def main() -> int:
     today_utc = datetime.now(timezone.utc).date()
     expected = {"today": today_utc, "tomorrow": today_utc + timedelta(days=1)}
 
+    # Ficheros KML/KMZ de la misma capa, para apps sin raster propio.
+    files_meta = {}
+    for name, payload in data.items():
+        for suffix, min_rcm in (("", 1), ("-alto", 4)):
+            stem = "rcm-%s%s" % (name, suffix)
+            kml_path = outdir / (stem + ".kml")
+            title = "RCM %s %s(%s)" % (
+                name, "nivel 4-5 " if min_rcm > 1 else "", payload["dataPrev"])
+            n = write_kml(kml_path, title, payload["levels"], concelhos,
+                          min_rcm, payload)
+            if n == 0:
+                kml_path.unlink(missing_ok=True)
+                print("[warn] %s: ningun concelho con rcm >= %d, sin fichero"
+                      % (stem, min_rcm), file=sys.stderr)
+                continue
+            # KMZ = el KML comprimido; DMD2 acepta los dos y pesa mucho menos.
+            kmz_path = outdir / (stem + ".kmz")
+            with zipfile.ZipFile(kmz_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.write(kml_path, "doc.kml")
+            files_meta[stem] = {
+                "kml": kml_path.name, "kmz": kmz_path.name,
+                "levels": n, "minRcm": min_rcm,
+                "kmlBytes": kml_path.stat().st_size,
+                "kmzBytes": kmz_path.stat().st_size,
+            }
+            print("[ok] %s: %d niveles, KML %.0f KB, KMZ %.0f KB"
+                  % (stem, n, kml_path.stat().st_size / 1024,
+                     kmz_path.stat().st_size / 1024))
+
     layers_meta = {}
     for name, payload in data.items():
         want = expected[name].isoformat()
@@ -360,6 +470,7 @@ def main() -> int:
         "legend": [{"rcm": k, "label": RCM_LABEL[k], "color": RCM_HEX[k]}
                    for k in sorted(RCM_HEX)],
         "layers": layers_meta,
+        "files": files_meta,
     }
     (outdir / "meta.json").write_text(
         json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")

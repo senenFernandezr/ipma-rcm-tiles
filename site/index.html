@@ -26,6 +26,8 @@
     display: block; font-size: 10px; word-break: break-all; color: #222;
     background: #f1f1f1; border-radius: 4px; padding: 3px 4px;
   }
+  .files a { display: block; font-size: 12px; margin: 4px 0; color: #0645ad; }
+  .files .size { color: #777; font-size: 11px; }
   .url-row button {
     margin-top: 3px; font-size: 11px; padding: 4px 8px; border-radius: 4px;
     border: 1px solid #bbb; background: #fff; cursor: pointer;
@@ -76,6 +78,11 @@
       + '<b>OsmAnd</b> (gratis): Configure map &rarr; Overlay map.<br>'
       + '<b>DMD2</b> (precisa licenca): Map Settings &rarr; Online Map Layers '
       + '&rarr; Add Custom Raster.</p></details>'
+      + '<details open><summary>Ficheiros KMZ (DMD2 sem licenca)</summary>'
+      + '<div id="files" class="files">a carregar...</div>'
+      + '<p class="note">Descarregar no telefone e abrir com '
+      + '&laquo;Import to DMD&raquo;. Repetir cada dia: os ficheiros mudam '
+      + 'com a previsao.</p></details>'
       + '<p class="note">Previsao de risco meteorologico de incendio. Nao mostra incendios ativos.</p>';
     L.DomEvent.disableClickPropagation(d);
     return d;
@@ -125,6 +132,23 @@
              '"></span>' + l.rcm + ' - ' + l.label + '</div>';
     }).join('');
     document.getElementById('legend').innerHTML = html;
+
+    // Enlaces a los KMZ, para las apps que no admiten raster propio.
+    var labels = {
+      'rcm-today-alto': 'Hoje, so nivel 4-5',
+      'rcm-today': 'Hoje, todos os niveis',
+      'rcm-tomorrow-alto': 'Amanha, so nivel 4-5',
+      'rcm-tomorrow': 'Amanha, todos os niveis'
+    };
+    var box = document.getElementById('files');
+    var rows = Object.keys(labels).filter(function (k) {
+      return m.files && m.files[k];
+    }).map(function (k) {
+      var f = m.files[k];
+      return '<a href="' + f.kmz + '" download>' + labels[k] +
+             ' <span class="size">(' + Math.round(f.kmzBytes / 1024) + ' KB)</span></a>';
+    });
+    box.innerHTML = rows.length ? rows.join('') : 'sem ficheiros';
 
     // Ajustar los limites reales de las capas a lo que diga meta.json.
     if (m.zoomMax) {

@@ -16,6 +16,11 @@ Portugal continental, pensada para usarla como *Custom Raster* en **DMD2**
 | Mañana | `https://senenfernandezr.github.io/ipma-rcm-tiles/tomorrow/{z}/{x}/{y}.png` |
 | Visor de prueba | `https://senenfernandezr.github.io/ipma-rcm-tiles/` |
 | Metadatos | `https://senenfernandezr.github.io/ipma-rcm-tiles/meta.json` |
+| KMZ hoy (nivel 4-5) | `https://senenfernandezr.github.io/ipma-rcm-tiles/rcm-today-alto.kmz` |
+| KMZ hoy (todos) | `https://senenfernandezr.github.io/ipma-rcm-tiles/rcm-today.kmz` |
+
+Las teselas necesitan una app que acepte capas raster propias; los **KMZ
+funcionan en DMD2 sin licencia** (ver más abajo).
 
 Zooms generados: **6 – 12**. Cobertura: Portugal continental
 (lon −9,6…−6,1 / lat 36,9…42,2); fuera de ese recuadro no hay teselas.
@@ -55,41 +60,62 @@ concelho a partir de z9.
 
 ## Configuración en el móvil
 
-Cualquier app que acepte una URL de teselas XYZ sirve. Pon siempre **zoom mínimo
-6 y zoom máximo 19** (las teselas llegan a z12; el 19 es para que la app reescale
-al acercar en vez de dejar la capa en blanco).
+Hay dos formas de consumir esto, según si tienes licencia de DMD2 o no.
 
-### OsmAnd (gratis) — recomendado
+### DMD2 sin licencia — ficheros KMZ
 
-1. *Menu → Plugins → **Online Maps*** y actívalo.
-2. *Menu → Configure map → **Overlay map…*** → añadir una fuente nueva.
-3. **URL:** la de la capa `today`. OsmAnd acepta tanto `{z}/{x}/{y}` como
-   `{0}/{1}/{2}`, así que vale tal cual.
-4. **Zoom:** mínimo 6, máximo 19.
-5. **Expire time:** ponlo en unos **120 minutos**. Si se deja sin caducidad,
-   OsmAnd guarda las teselas y seguirías viendo el riesgo de ayer.
-6. Deja el **deslizador de transparencia** al máximo de opacidad: las teselas ya
-   vienen semitransparentes (alfa 120), la transparencia está en la propia imagen.
+*Add Custom Raster* vive dentro de *Online Map Layers*, y la documentación
+oficial dice que **"Online Map Layers needs a license"**. Pero **abrir ficheros
+sí es gratis**: DMD2 importa GPX, KML, KMZ, GeoJSON, TCX, FIT, ITN y CSV, y los
+KML/KMZ incluyen *"lines, points, areas and timed tracks"* — áreas incluidas.
 
-### DMD2 — necesita licencia
+Así que el build publica la misma capa como polígonos KMZ:
 
-*Map Settings → Online Map Layers → Add Custom Raster*, con la URL de `today`,
-zoom 6–19 y, si existe el interruptor, marcada como overlay.
+| Fichero | Contenido |
+|---|---|
+| `rcm-today-alto.kmz` | hoy, solo niveles 4 y 5 |
+| `rcm-today.kmz` | hoy, los cinco niveles |
+| `rcm-tomorrow-alto.kmz` | mañana, solo niveles 4 y 5 |
+| `rcm-tomorrow.kmz` | mañana, los cinco niveles |
 
-Ojo: la documentación oficial dice que **"Online Map Layers needs a license"**, y
-*Add Custom Raster* está dentro de eso. Con la versión gratuita la opción no
-aparece. Y si acabas comprando la licencia, DMD2 ya incluye sus propias capas
-*Active Fires* y *Fire Danger*; esta capa sigue teniendo sentido porque es el
-índice oficial del IPMA por concelho, pero conviene saberlo.
+Unos 90–120 KB cada uno. Los concelhos del mismo nivel van **fusionados** en un
+solo polígono por nivel: quita las fronteras interiores, así que el fichero pesa
+menos y se lee mejor en marcha.
 
-### Otras apps gratuitas
+Cómo usarlo:
 
-**OruxMaps** (fuentes en `onlinemapsources.xml`) y **Guru Maps** (fuentes
-personalizadas en el nivel gratuito) también aceptan URLs XYZ.
+1. En el móvil, abre el visor y toca el enlace del fichero que quieras (están en
+   *Ficheiros KMZ*, dentro del panel de la leyenda).
+2. En la notificación de descarga, **Abrir con → Import to DMD**. También vale
+   compartir el fichero desde el gestor de archivos.
+3. Aparece en *Loaded GPX Files*, en el mapa.
 
-### Si la app no reescala por encima de z12
+**Hay que repetirlo cada día**, porque la previsión cambia. La URL es fija, así
+que puedes dejar un acceso directo en la pantalla de inicio y son dos toques.
 
-Ver *Zoom por encima de 12*, más arriba.
+Dos avisos honestos: la documentación confirma que las áreas se importan, pero
+**no dice si respeta el color de relleno** del KML. Si DMD2 dibuja solo el
+contorno, se sigue viendo perfectamente qué zonas están en nivel 4–5, que es lo
+que importa. Y el KML no es una capa de teselas: no se reescala ni se recorta por
+zoom, se dibuja tal cual.
+
+### Con licencia (DMD2, OsmAnd, otras) — capa raster XYZ
+
+Cualquier app que acepte una URL de teselas XYZ. Pon siempre **zoom mínimo 6 y
+zoom máximo 19** (las teselas llegan a z12; el 19 es para que la app reescale al
+acercar en vez de dejar la capa en blanco). Si no reescala, mira *Zoom por
+encima de 12*, más arriba.
+
+- **DMD2:** *Map Settings → Online Map Layers → Add Custom Raster*, con la URL de
+  `today` y, si existe el interruptor, marcada como overlay. Con la licencia,
+  DMD2 ya trae además sus capas *Active Fires* y *Fire Danger*; esta sigue
+  teniendo sentido porque es el índice oficial del IPMA por concelho.
+- **OsmAnd:** *Menu → Plugins → **Online Maps***, luego *Menu → Configure map →
+  **Overlay map…*** → añadir fuente. Acepta `{z}/{x}/{y}` y `{0}/{1}/{2}`. Pon
+  *Expire time* en unos **120 minutos**, o cacheará el riesgo de ayer. Deja el
+  deslizador de transparencia al máximo: las teselas ya vienen semitransparentes.
+- **OruxMaps** (fuentes en `onlinemapsources.xml`) y **Guru Maps** también
+  aceptan URLs XYZ en su nivel gratuito, sin el límite de mapas de OsmAnd.
 
 ### Si ves datos de ayer (caché)
 
@@ -107,7 +133,8 @@ Las apps guardan las teselas ya vistas. Si la capa no se actualiza:
 ```
 data/concelhos.geojson     278 concelhos (EPSG:4326, simplificado ~0,001°)
 scripts/prepare_concelhos.py   genera ese GeoJSON desde la CAOP (uso puntual)
-scripts/build_tiles.py     descarga RCM d0/d1 y rasteriza las teselas
+scripts/build_tiles.py     descarga RCM d0/d1, rasteriza las teselas y
+                           genera los KML/KMZ
 site/index.html            visor Leaflet, se copia a public/
 .github/workflows/build.yml  4 veces/dia: build + deploy a Pages
 ```
